@@ -1,0 +1,9 @@
+[window]
+startup_mode = "maximized"
+opacity = 0.9
+[font]
+size = 12
+[keyboard]
+bindings = [{key = "Space", mods = "Shift", action = "ToggleViMode"}, {key = "Escape", mode = "Vi", action = "ToggleViMode"}]
+[terminal]
+shell = "/usr/bin/bash"
