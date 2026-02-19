@@ -27,8 +27,6 @@ username="cekmop-npu3"
 
 
 function chooseDisk () {
-    echo "$0"
-
     local disks=( $(lsblk --nodeps --noheadings --output NAME) EXIT )
     local diskName=
 
@@ -47,8 +45,6 @@ function chooseDisk () {
 }
 
 function diskPartition () {
-    echo "$0"
-
     # TODO: Handle MBR, let a user choose desired partition style
 
     # Creates two partitions:
@@ -60,8 +56,6 @@ function diskPartition () {
 }
 
 function luksSetup () {
-    echo "$0"
-
     # $1 -> rootPartition
    	
     cryptsetup luksFormat --batch-mode $1 &&
@@ -74,8 +68,6 @@ function luksSetup () {
 }
 
 function preparePartitions () {
-    echo "$0"
-
     local rootPartition=$(lsblk -ln -o PATH,PARTN $currentDisk | grep -Po "$currentDisk\w+(?=\s+2$)")
     if [[ -z "$rootPartition" ]]; then
 	return 1
@@ -106,8 +98,6 @@ function preparePartitions () {
 }
 
 function populateBashFiles () {
-    echo "$0"
-
     install -d -m 755 -o $username -g $username /mnt/home/$username
 
     install -m 644 -o $username -g $username /dev/stdin \
@@ -124,8 +114,6 @@ function populateBashFiles () {
 }
 
 function installPackages () {
-    echo "$0"
-
     pacstrap -K /mnt base base-devel linux linux-firmware intel-ucode git openssh grub efibootmgr lvm2 cryptsetup
 
     arch-chroot /mnt <<-'EOF'
@@ -139,8 +127,6 @@ function installPackages () {
 }
 
 function cloneRepositories () {
-    echo "$0"
-
     arch-chroot /mnt su - $username -c "
         mkdir -p ~/.config/nvim/pack/plugins/start &&
         git clone https://github.com/lewis6991/gitsigns.nvim.git ~/.config/nvim/pack/plugins/start/gitsigns.nvim &&
@@ -154,16 +140,12 @@ function cloneRepositories () {
 }
 
 function copyConfigDirectories () {
-    echo "$0"
-
     arch-chroot /mnt su - "$username" -c "mkdir -p ~/.config"
     cp -a ./config/. /mnt/home/$username/.config/
     arch-chroot /mnt chown -R "$username:$username" "/home/$username/.config"
 }
 
 function enableServices () {
-    echo "$0"
-
     # Still have to manually enable pipewire and wireplumber after installation
     # su - $username -c "systemctl --user enable pipewire wireplumber"
     arch-chroot /mnt <<-EOF
@@ -174,8 +156,6 @@ function enableServices () {
 }
 
 function bootConfiguration () {
-    echo "$0"
-
     arch-chroot /mnt <<-EOF
     sed -i 's/^[[:space:]]*HOOKS.*/HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt lvm2 filesystems fsck)/' /etc/mkinitcpio.conf
     mkinitcpio -P
@@ -186,8 +166,6 @@ function bootConfiguration () {
 }
 
 function systemConfiguration () {
-    echo "$0"
-
     genfstab -U /mnt > /mnt/etc/fstab
     arch-chroot /mnt <<-EOF
     ln -sf /usr/share/zoneinfo/$locale /etc/localtime
@@ -205,8 +183,6 @@ function systemConfiguration () {
 }
 
 function userConfiguration () {
-    echo "$0"
-
     arch-chroot /mnt <<-EOF
     passwd
     useradd -m $username
@@ -218,7 +194,7 @@ function userConfiguration () {
 }
 
 function main () {
-    exec 2> ~/errors.log
+    exec 2>> "./errors.log"
 
     if ! chooseDisk; then
         echo "Disk to format has not been chosen"
@@ -244,6 +220,8 @@ function main () {
     cloneRepositories
     copyConfigDirectories
     enableServices
+
+    source ./create_symlinks.sh
 
     echo "Installation complete"
     echo "The system will reboot now"
