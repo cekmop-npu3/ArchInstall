@@ -1,0 +1,2 @@
+@configPath/alacritty /home/@username/.config/alacritty
+@configPath/nvim /home/@username/.config/alacritty
