@@ -1,2 +1,2 @@
-@configPath/alacritty /home/@username/.config/alacritty
-@configPath/nvim /home/@username/.config/alacritty
+/home/cekmop-npu3/arch_install/config/alacritty /home/cekmop-npu3/.config/alacritty
+/home/cekmop-npu3/arch_install/config/nvim /home/cekmop-npu3/.config/nvim
