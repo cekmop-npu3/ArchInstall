@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 
 set -euo pipefail
 
@@ -17,7 +17,6 @@ function usage () {
     cat <<EOF
 Usage:
  $scriptName [options] 
- source $scriptName                       To use in another bash file with initialized variables
 
 Options:
  -u, --username <username>                User to install config files to
@@ -116,7 +115,7 @@ function parseConfig () {
 
 	    if ! [[ -e "$target" ]]; then
 	        echo "Target is invalid"
-	        exit 1
+	        exit $INVALID_CONFIG_ARGS
 	    fi
 
 	    case $action in

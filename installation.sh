@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/bash
 
 
 echo <<'EOF'
@@ -12,223 +12,365 @@ EOF
 
 set -euo pipefail
 
-currentDisk=
-swapSize="16G"
-rootSize="64G"
-minDiskSize=107374182400 # 100GiB
+readonly INSUFFICIENT_DISK_SIZE=1
+readonly INVALID_TIMEZONE=2
+readonly INVALID_PARTITION=3
+readonly INVALID_DISK_NAME=4
+readonly INVALID_UEFI=5
+readonly INVALID_USERNAME=6
+readonly INVALID_HOSTNAME=7
+readonly INVALID_ENCRYPTION=9
+readonly INSUFFICIENT_ROOT_SIZE=10
+readonly INVALID_NUMBER=11
+readonly SYMLINK_ERROR=12
 
-luksContainer="cryptlvm"
-luksPartitionUUID=
-volumeGroup="vg0"
+readonly INTERACTIVE_MODE=100
 
-locale="Europe/Minsk"
-hostname="cekmop-npu3"
-username="cekmop-npu3"
+readonly scriptName=$(basename "$0")
+readonly minDiskSize="128" 
+readonly minRootSize="64"
+readonly configPath="./config/.LINK"
 
+function usage () {
+    cat <<EOF
+Usage:
+ $scriptName [options]
+ $scriptName [-i|--interactive]
+
+Options:
+ -u, --username <username>                    Username to use
+ -d, --disk <disk>                            Disk to use
+ -l, --localtime <timezone>                   Timezone in a format <Area/Location> 
+ -H, --hostname <hostname>                    Hostname to use
+ -s, --swap <swap_size>                       Swap size in GiB in a format <Integer>. Disabled by default
+ -r, --root <root_size>                       Root size in GiB in a format <Integer>. Minimum 64 GiB
+ -p, --partition <part_style>                 Either <GPT> or <MBR>
+ -L, --lvm <volume_group>                     LVM volume group. Option enables LVM. Disabled by default
+ -e, --encryption <container_name>            Enable LUKS encryption. Disabled by default
+
+ -h, --help                                   Display this help
+EOF
+}
+
+function errorExit () {
+    # $1 -> Error message
+    # $2 -> Exit code
+
+    echo "$1"
+    usage
+    exit "$2"
+}
+
+function evalOpts () {
+    local opts=$(getopt -l "help,username:,disk:,localtime:,hostname:,swap:,root:,partition:,encryption:,lvm:,interactive" -o "hu:d:l:H:s:r:p:e:L:i" -- $@)
+    eval set -- "$opts"
+
+    if [[ "$1" == "--" && "$#" == 1 ]]; then
+        usage
+        exit 0
+    fi
+
+    if [[ "$1" == "-i" || "$1" == "--interactive" ]]; then
+        return $INTERACTIVE_MODE
+    fi
+
+    while [[ $1 != "--" ]]; do
+        case $1 in
+            (-h|--help)
+                usage
+                exit 0
+            ;;
+            (-u|--username)
+                username="$2"
+            ;;
+            (-H|--hostname)
+                hostname="$2"
+            ;;
+            (-e|--encryption)
+                luksContainer="$2"
+            ;;
+            (-L|--lvm)
+                volumeGroup="$2"
+            ;;
+            (-d|--disk)
+                if ! lsblk "/dev/$2"; then
+                    errorExit "Invalid disk name" $INVALID_DISK_NAME
+                elif [[ $(lsblk --bytes --nodeps --noheadings --output SIZE "/dev/$2") -lt (( $minDiskSize * 1073741824 )) ]]; then
+                    errorExit "Disk size must be at least $minDiskSize GiB" $INSUFFICIENT_DISK_SIZE
+                fi
+	            currentDisk="/dev/$2"
+            ;;
+            (-l|--localtime)
+                if [[ -z "$(timedatectl list-timezones | grep -oP "^$2$")" ]]; then
+                    errorExit "Timezone "$2" was not found" $INVALID_TIMEZONE
+                fi
+                timezone="$2" 
+            ;;
+            (-s|--swap)
+                if [[ -z "$(echo "$2" | grep -oP '^d+$')" ]]; then
+                    errorExit "Swap size must be of Integer type" $INVALID_NUMBER
+                fi
+                swapSize="$2"
+            ;;
+            (-r|--root)
+                if [[ -z "$(echo "$2" | grep -oP '^d+$')" ]]; then
+                    errorExit "Root size must be of Integer type" $INVALID_NUMBER
+                elif [[ "$2" -lt "$minRootSize" ]]; then
+                    errorExit "Root size must be at least $minRootSize GiB" $INSUFFICIENT_ROOT_SIZE
+                fi
+                rootSize="$2"
+            ;;
+            (-p|--partition)
+                if [[ "$2" != "GPT" && "$2" != "MBR" ]]; then
+                    errorExit "Partition style must be either "GPT" or "MBR", not $2" $INVALID_PARTITION
+                elif [[ "$2" == "GPT" && ! -d "/sys/firmware/efi" ]]; then 
+                    errorExit "UEFI is not detected" $INVALID_UEFI
+                fi
+                partition="$2"
+            ;;
+            (-i|--interactive)
+                errorExit "Unknown parameter "$1" passed" $INTERACTIVE_MODE
+            ;;
+        esac
+        shift 2
+    done
+
+    shift 1
+    if [[ -n ${1:-} ]]; then
+	    echo "Unknown param "$1" specified"
+	    exit $PARAM_SPECIFIED
+    fi
+}
+
+function checkVariables () {
+    if [[ -z "${username:-}" ]]; then
+        errorExit "Username was not specified" $INVALID_USERNAME
+    elif [[ -z "${hostname:-}" ]]; then
+        errorExit "Hostname was not specified" $INVALID_HOSTNAME
+    elif [[ -z "${timezone:-}" ]]; then
+        errorExit "Timezone was not specified" $INVALID_TIMEZONE
+    elif [[ -z "${rootSize:-}" ]]; then
+        errorExit "Root size was not specified" $INSUFFICIENT_ROOT_SIZE
+    elif [[ -z "${partition:-}" ]]; then
+        errorExit "Partition was not specified" $INVALID_PARTITION
+    elif [[ (( "$rootSize" + "${swapSize:="0"}" )) -ge "$minDiskSize" ]]; then
+        errorExit "Not enough space on /dev/$currentDisk for current configuration" $INSUFFICIENT_DISK_SIZE
+    fi
+}
 
 function chooseDisk () {
-    local disks=( $(lsblk --nodeps --noheadings --output NAME) EXIT )
+    local disks=( $(lsblk --nodeps --noheadings --output NAME) "EXIT" )
     local diskName=
 
-    echo "Enter your disk name: "
     select diskName in ${disks[@]}; do
-	if [[ $diskName == "EXIT" ]]; then
-	    return 1
-	fi
-        if [[ $(lsblk --bytes --nodeps --noheadings --output SIZE /dev/$diskName) -ge $minDiskSize ]]; then
-	    currentDisk="/dev/$diskName"
+        echo "Enter your disk name or EXIT to exit the script: "
+	    if [[ "$diskName" == "EXIT" ]]; then
+	        exit 0
+        elif [[ $(lsblk --bytes --nodeps --noheadings --output SIZE /dev/$diskName) -ge (( $minDiskSize * 1073741824 )) ]]; then
+	        currentDisk="/dev/$diskName"
     	    return 0 
         fi
-        echo "Disk size must be at least $(($minDiskSize / 1073741824)) GiB"
-        echo "Enter your disk name: "
+        echo "Disk size must be at least $minDiskSize GiB"
+    done
+}
+
+function chooseMode () {
+    local modes=( "LVM+LUKS" "LVM" "LUKS" "NONE" "EXIT" )
+    local mode=
+
+    volumeGroup=
+    luksContainer=
+
+    select mode in "${modes[@]}"; do
+        echo "Enter your mode, or EXIT to exit the script: "
+        case $mode in
+            ("LVM+LUKS")
+                read -rp "Enter LVM volume group name: " volumeGroup
+                read -rp "Enter LUKS container name: " luksContainer
+                break
+            ;;
+            (LVM)
+                read -rp "Enter LVM volume group name: " volumeGroup
+                break
+            ;;
+            (LUKS)
+                read -rp "Enter LUKS container name: " luksContainer
+                break
+            ;;
+            (NONE)
+                break
+            ;;
+            (EXIT)
+                exit 0
+            ;;
+            (*)
+                echo "Unknown option "$mode""
+            ;;
+        esac
+    done
+}
+
+function choosePartitionStyle () {
+    local partitions=( "GPT" "MBR" "EXIT" )
+    local part=
+
+    select part in "${partitions[@]}"; do
+        echo "Enter your partition style, or EXIT to exit the script: "
+        case $part in 
+            (MBR)
+                if [[ -d "/sys/firmware/efi" ]]; then
+                    echo "UEFI is detected"
+                    local -l response=
+                    read -rp "Are you sure you want to continue with MBR? yes/no: " response
+                    if [[ "$response" == "no" ]]; then
+                        continue
+                    fi
+                fi
+                partition="MBR"
+                break
+            ;;
+            (GPT)
+                if [[ -d "/sys/firmware/efi" ]]; then
+                    partition="GPT" 
+                    break
+                fi
+                echo "UEFI is not detected"
+            ;;
+            (EXIT)
+                exit 0
+            ;;
+            (*)
+                echo "Unknown option "$part""
+            ;;
+        esac
     done
 }
 
 function diskPartition () {
-    # TODO: Handle MBR, let a user choose desired partition style
-
-    # Creates two partitions:
-    # 	1. EFI System (1 GiB)
-    #  	2. Linux LVM (100%FREE)
-	
-    wipefs -a "$currentDisk" &&
-    fdisk "$currentDisk" <<< $'g\nn\n1\n\n+1G\nt\n1\n1\nn\n2\n\n\nt\n2\n31\nw\n'
+    wipefs -a "$currentDisk"
+    if [[ -n "$volumeGroup"]]; then
+        fdisk "$currentDisk" <<< $'g\nn\n1\n\n+1G\nt\n1\n1\nn\n2\n\n\nt\n2\n31\nw\n'
+    else
+        # TODO: Make root, home, swap partitions using fdisk
+        exit 0
+    fi
 }
 
 function luksSetup () {
     # $1 -> rootPartition
-   	
-    cryptsetup luksFormat --batch-mode $1 &&
-    cryptsetup open $1 $luksContainer &&
-    pvcreate /dev/mapper/$luksContainer &&
-    vgcreate $volumeGroup /dev/mapper/$luksContainer &&
-    lvcreate -L $swapSize -n swap $volumeGroup &&
-    lvcreate -L $rootSize -n root $volumeGroup &&
+    cryptsetup luksFormat --batch-mode $1
+    cryptsetup open $1 $luksContainer
+    if [[ -z "${volumeGroup:-}" ]]; then
+        local partitions=
+        local partition=
+        mapfile -t partitions < $(lsblk -ln -o PATH,PARTN $currentDisk | grep -oP "$currentDisk\w+(?=\s+[3-9]$)")
+        local -a names
+        names=( "crypthome" "cryptswap" )
+        local -i index=0
+        for partition in "${partitions[@]}"; do
+            cryptsetup luksFormat --batch-mode "$partition"
+            cryptsetup open $partition $names[$index]
+            (( ++index ))
+        done
+    fi
+}
+
+function lvmSetup () {
+    # $1 -> rootPartition
+    if [[ -z "${luksContainer:-}" ]]; then
+        pvcreate "$1"
+        vgcreate "$volumeGroup" "$1"
+    else
+        pvcreate "/dev/mapper/$luksContainer"
+        vgcreate $volumeGroup "/dev/mapper/$luksContainer"
+    fi
+
+    if [[ -n "${swapSize:-}" ]]; then
+        lvcreate -L $swapSize -n swap $volumeGroup
+    fi
+    lvcreate -L $rootSize -n root $volumeGroup
     lvcreate -l 100%FREE -n home $volumeGroup
 }
 
-function preparePartitions () {
-    local rootPartition=$(lsblk -ln -o PATH,PARTN $currentDisk | grep -Po "$currentDisk\w+(?=\s+2$)")
-    if [[ -z "$rootPartition" ]]; then
-	return 1
+function formatPartitions () {
+    # $1 -> bootPath
+    # $2 -> rootPath
+    # $3 -> homePath
+    # $4 -> swapPath
+    mkfs.ext4 "$2"
+    mkfs.ext4 "$3"
+    mount "$2" /mnt
+    mount --mkdir "$3" /mnt/home
+    if [[ -n "${4:-}" ]]; then
+        mkswap "$4"
+        swapon "$4"
     fi
-
-    if ! luksSetup "$rootPartition"; then
-	return 2
-    fi
-    luksPartitionUUID=$(blkid -s UUID -o value "$rootPartition")
-    if [[ -z "$luksPartitionUUID" ]]; then
-	return 3
-    fi
-    mkfs.ext4 /dev/$volumeGroup/root &&
-    mkfs.ext4 /dev/$volumeGroup/home &&
-    mkswap /dev/$volumeGroup/swap &&
-    mount /dev/$volumeGroup/root /mnt && 
-    mount --mkdir /dev/$volumeGroup/home /mnt/home &&
-    swapon /dev/$volumeGroup/swap
-
-    local bootPartition=$(lsblk -ln -o PATH,PARTN $currentDisk | grep -Po "$currentDisk\w+(?=\s+1$)")
-    if [[ -z "$bootPartition" ]]; then
-	return 1
-    fi
-
     # TODO: Format MBR partition accordingly
-    mkfs.fat -F32 $bootPartition &&
-    mount --mkdir $bootPartition /mnt/boot
+    mkfs.fat -F32 $1
+    mount --mkdir $1 /mnt/boot
 }
 
-function populateBashFiles () {
-    install -d -m 755 -o $username -g $username /mnt/home/$username
+function resolvePartitions () {
+    local rootPartition=$(lsblk -ln -o PATH,PARTN $currentDisk | grep -Po "$currentDisk\w+(?=\s+2$)")
 
-    install -m 644 -o $username -g $username /dev/stdin \
-        /mnt/home/$username/.bash_profile <<-'EOF'
-    if uwsm check may-start; then
-	exec uwsm start hyprland.desktop
+    # Decrypt rootPartition if LVM is enabled, otherwise decrypt all of the partitions
+    if [[ -n "${luksContainer:-}" ]]; then
+        luksSetup $rootPartition
+        luksPartitionUUID=$(blkid -s UUID -o value "$rootPartition") 
     fi
-    EOF
 
-    install -m 644 -o $username -g $username /dev/stdin \
-        /mnt/home/$username/.bashrc <<-'EOF'
-    export MANPAGER="nvim -c 'Man!' -"
-    EOF
-}
+    # Create volume group for either luksContainer or rootPartition
+    if [[ -n "${volumeGroup:-}" ]]; then 
+        lvmSetup $rootPartition
+    fi
 
-function installPackages () {
-    pacstrap -K /mnt base base-devel linux linux-firmware intel-ucode git openssh grub efibootmgr lvm2 cryptsetup
+    # Resolve pathes for LVM partitions or regular ones
+    local bootPath=$(lsblk -ln -o PATH,PARTN $currentDisk | grep -Po "$currentDisk\w+(?=\s+1$)")
+    if [[ -z "${volumeGroup:-}" ]]; then
+        local rootPath="$rootPartition"
+        local homePath=$(lsblk -ln -o PATH,PARTN $currentDisk | grep -Po "$currentDisk\w+(?=\s+3$)")
+        if [[ -n "${swapSize:-}" ]]; then
+            local swapPath="$(lsblk -ln -o PATH,PARTN $currentDisk | grep -Po "$currentDisk\w+(?=\s+4$)")"
+        fi
+    else
+        local rootPath="/dev/${volumeGroup:-}/root"
+        local homePath="/dev/${volumeGroup:-}/home"
+        if [[ -n "${swapSize:-}" ]]; then
+            local swapPath="/dev/${volumeGroup:-}"
+        fi
+    fi
 
-    arch-chroot /mnt <<-'EOF'
-    pacman --noconfirm -S man-db man-pages sudo neovim vim nano ninja clang rust go python python-pip gdb make cmake pkg-config
-    pacman --noconfirm -S networkmanager network-manager-applet bluez bluez-utils blueman
-    pacman --noconfirm -S pipewire pipewire-pulse pipewire-alsa pipewire-jack wireplumber sof-firmware
-    pacman --noconfirm -S mesa mesa-utils vulkan-intel xorg-xwayland
-    pacman --noconfirm -S wayland wayland-protocols xdg-desktop-portal-hyprland xdg-desktop-portal-gtk xdg-utils uwsm libnewt
-    pacman --noconfirm -S hyprland alacritty hyprpaper copyq rofi hyprlock nautilus brightnessctl hyprshot
-    EOF
-}
-
-function cloneRepositories () {
-    arch-chroot /mnt su - $username -c "
-        mkdir -p ~/.config/nvim/pack/plugins/start &&
-        git clone https://github.com/lewis6991/gitsigns.nvim.git ~/.config/nvim/pack/plugins/start/gitsigns.nvim &&
-        git clone https://github.com/rebelot/kanagawa.nvim.git ~/.config/nvim/pack/plugins/start/kanagawa.nvim &&
-        git clone https://github.com/iamcco/markdown-preview.nvim.git ~/.config/nvim/pack/plugins/start/markdown-preview.nvim &&
-        git clone https://github.com/LuaLS/lua-language-server ~/lua-language-server &&
-        cd ~/lua-language-server &&
-        chmod +x make.sh &&
-        ./make.sh
-    "
-}
-
-function copyConfigDirectories () {
-    arch-chroot /mnt su - "$username" -c "mkdir -p ~/.config"
-    cp -a ./config/. /mnt/home/$username/.config/
-    arch-chroot /mnt chown -R "$username:$username" "/home/$username/.config"
-}
-
-function enableServices () {
-    # Still have to manually enable pipewire and wireplumber after installation
-    # su - $username -c "systemctl --user enable pipewire wireplumber"
-    arch-chroot /mnt <<-EOF
-    systemctl enable NetworkManager
-    systemctl enable bluetooth
-    systemctl enable sshd
-    EOF
-}
-
-function bootConfiguration () {
-    arch-chroot /mnt <<-EOF
-    sed -i 's/^[[:space:]]*HOOKS.*/HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt lvm2 filesystems fsck)/' /etc/mkinitcpio.conf
-    mkinitcpio -P
-    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB
-    sed -i 's/^[[:space:]]*GRUB_CMDLINE_LINUX.*/GRUB_CMDLINE_LINUX="rd.luks.name=$luksPartitionUUID=cryptlvm root=/dev/mapper/$volumeGroup-root"/' /etc/default/grub
-    grub-mkconfig -o /boot/grub/grub.cfg
-    EOF
-}
-
-function systemConfiguration () {
-    genfstab -U /mnt > /mnt/etc/fstab
-    arch-chroot /mnt <<-EOF
-    ln -sf /usr/share/zoneinfo/$locale /etc/localtime
-    hwclock --systohc
-    echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
-    locale-gen
-    echo "LANG=en_US.UTF-8" > /etc/locale.conf
-    echo "$hostname" > /etc/hostname
-    cat > /etc/hosts <<-EOF2
-    127.0.0.1   localhost
-    ::1         localhost
-    127.0.1.1   $hostname.localdomain $hostname
-    EOF2
-    EOF
-}
-
-function userConfiguration () {
-    arch-chroot /mnt <<-EOF
-    passwd
-    useradd -m $username
-    passwd $username
-    usermod -aG wheel $username
-    echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/10-wheel
-    chmod 0440 /etc/sudoers.d/10-wheel
-    EOF
+    # Format partitions
+    formatPartitions $bootPath $rootPath $homePath "${swapPath:-}"
 }
 
 function main () {
     exec 2>> "./errors.log"
 
-    if ! chooseDisk; then
-        echo "Disk to format has not been chosen"
-        echo "Terminating the script"
-        exit 1
+    if evalOpts $@; then
+        checkVariables
+    else
+        chooseDisk
+        chooseMode
+        choosePartitionStyle
     fi
-    if ! diskPartition; then
-        echo "Unable to create partitions"
-        echo "Terminating the script"
-        exit 2
-    fi
-    if ! preparePartitions; then
-	echo "Unable to format or mount partitions"
-	echo "Terminating the script"
-	exit 3
-    fi
+    diskPartition
+    resolvePartitions
 
-    installPackages
-    systemConfiguration
-    bootConfiguration
-    userConfiguration
-    populateBashFiles
-    cloneRepositories
-    copyConfigDirectories
-    enableServices
+    # TODO: Install necessary packages and configure the system
 
-    source ./create_symlinks.sh
+    if ! ./symlinks.sh -u "$username" -p "$configPath" -a "create"; then
+        echo "Installation incomplete"
+        echo "Check the errors in "./errors.log""
+        ./symlinks -h
+        exit $SYMLINK_ERROR
+    fi
 
     echo "Installation complete"
     echo "The system will reboot now"
-
-    umount -R /mnt && reboot
+    umount -R /mnt
+    reboot
 }
 
-
-main
+main $@
 
