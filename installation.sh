@@ -1,5 +1,7 @@
 #!/usr/bin/bash
 
+# TODO: Redirect stdout/stderr of some commands in /dev/null
+#       Provide an option for a passphrase in non-interactive mode 
 
 cat <<'EOF'
            _                                                  _____ 
@@ -111,7 +113,9 @@ function evalOpts () {
                 if [[ -z "$(echo "$2" | grep -oP '^\d+$')" ]]; then
                     errorExit "Swap size must be of Integer type" $INVALID_NUMBER
                 fi
-                swapSize="$2"
+                if [[ -z "$(echo "$2" | grep -oP '^0+')" ]]; then
+                    swapSize="$2"
+                fi
             ;;
             (-r|--root)
                 if [[ -z "$(echo "$2" | grep -oP '^\d+$')" ]]; then
@@ -176,12 +180,16 @@ function chooseDisk () {
     local diskName=
 
     while true; do
+        # TODO: Add default value of minRootSize
         read -rp "Enter rootSize (Minimum $minRootSize GiB): " rootSize
         if [[ -z "$(echo "$rootSize" | grep -oP '^\d+$')" || $rootSize -lt $minRootSize ]]; then
             echo "Invalid root size"
             continue
         fi
         read -rp "Enter swapSize (default: 0): " swapSize
+        if [[ -n "$(echo "$swapSize" | grep -oP '^0+')" ]]; then
+            break
+        fi
         if [[ -n "${swapSize:-}" && -z "$(echo "$swapSize" | grep -oP '^\d+$')" ]]; then
             echo "Invalid swap size"
             continue
@@ -279,12 +287,15 @@ function choosePartitionStyle () {
 }
 
 function diskCleanup () {
+    swapoff -a
+
     # Remove existing mapper names
     local mapperNames=
     local name=
-    mapfile -t mapperNames < <(lsblk -ln -o PATH,PARTN $currentDisk | grep -oP "/dev/mapper/\K\w+")
-    for name in "${mapperNames[@]}"; do
-        cryptsetup close "$name" 2>/dev/null
+    mapfile -t mapperNames < <(lsblk -ln -o PATH,PARTN $currentDisk | grep -oP "/dev/mapper/\K\S+")
+    local i=
+    for (( i="${#mapperNames[@]}" - 1; i>=0; i-- )); do 
+        cryptsetup close "${mapperNames[i]}" 2>/dev/null
     done
 
     # Deactivate existing volume groups on partitions of currentDisk
@@ -297,10 +308,8 @@ function diskCleanup () {
 }
 
 function diskPartition () {
-    if ! wipefs -a "$currentDisk"; then
-        echo "Disk $currentDisk is busy, rebooting"
-        reboot
-    fi
+    wipefs -a "$currentDisk"
+
     if [[ "$partition" == "GPT" ]]; then
         if [[ -n "${volumeGroup:-}" ]]; then
             # lvm (alias lvm)
@@ -314,9 +323,10 @@ function diskPartition () {
         fi
     else
         if [[ -n "${volumeGroup:-}" ]]; then
-            # lvm (type 8e)
+            # lvm (alias lvm)
             fdisk "$currentDisk" <<< $'o\nn\np\n1\n\n+1G\na\nn\np\n2\n\n\nt\n2\nlvm\nw\n'
         elif [[ -n "${swapSize:-}" ]]; then
+            # TODO Change swap type
             # root, home and swap (alias swap)
             fdisk "$currentDisk" <<< $'o\nn\np\n1\n\n+1G\na\nn\np\n2\n\n+'"${rootSize}"$'G\nn\np\n4\n\n+'"${swapSize}"$'G\nt\n4\nswap\nn\np\n\n\nw\n'
         else
@@ -342,13 +352,13 @@ function luksSetup () {
         read -s -rp "Confirm LUKS passphrase: " confirm
         echo
         if [[ "$password" != "$confirm" ]]; then
-            echo "Passprases do not match"
+            echo "Passphrases do not match"
             continue
         fi
         break
     done
     echo -n "$password" | cryptsetup luksFormat -q --key-file=- "$1"
-    cryptsetup open $1 $luksContainer
+    echo -n "$password" | cryptsetup open -q --key-file=- $1 $luksContainer
     if [[ -z "${volumeGroup:-}" ]]; then
         local partitions=
         local partition=
@@ -358,7 +368,7 @@ function luksSetup () {
         local -i index=0
         for partition in "${partitions[@]}"; do
             echo -n "$password" | cryptsetup luksFormat -q --key-file=- "$partition"
-            cryptsetup open "$partition" "${names[$index]}"
+            echo -n "$password" | cryptsetup open -q --key-file=- "$partition" "${names[$index]}"
             (( ++index ))
         done
     fi
@@ -368,10 +378,10 @@ function lvmSetup () {
     # $1 -> rootPartition
     if [[ -z "${luksContainer:-}" ]]; then
         pvcreate -f "$1"
-        vgcreate "$volumeGroup" "$1"
+        vgcreate -f "$volumeGroup" "$1"
     else
         pvcreate -f "/dev/mapper/$luksContainer"
-        vgcreate $volumeGroup "/dev/mapper/$luksContainer"
+        vgcreate $volumeGroup -f "/dev/mapper/$luksContainer"
     fi
 
     if [[ -n "${swapSize:-}" ]]; then
@@ -386,8 +396,8 @@ function formatPartitions () {
     # $2 -> rootPath
     # $3 -> homePath
     # $4 -> swapPath
-    mkfs.ext4 "$2"
-    mkfs.ext4 "$3"
+    mkfs.ext4 -FF "$2"
+    mkfs.ext4 -FF "$3"
     mount "$2" /mnt
     mount --mkdir "$3" /mnt/home
     if [[ -n "${4:-}" ]]; then
@@ -395,9 +405,9 @@ function formatPartitions () {
         swapon "$4"
     fi
     if [[ "$partition" == "GPT" ]]; then
-        mkfs.fat -F32 $1
+        mkfs.fat -F32 "$1"
     else
-        mkfs.ext4 $1
+        mkfs.ext4 -FF "$1"
     fi
     mount --mkdir $1 /mnt/boot
 }
@@ -416,19 +426,25 @@ function resolvePartitions () {
         lvmSetup $rootPartition
     fi
 
-    # Resolve pathes for LVM partitions or regular ones
+    # Resolve pathes for partitions
     local bootPath=$(lsblk -ln -o PATH,PARTN $currentDisk | grep -Po "$currentDisk\w+(?=\s+1$)")
-    if [[ -z "${volumeGroup:-}" ]]; then
-        local rootPath="$rootPartition"
-        local homePath=$(lsblk -ln -o PATH,PARTN $currentDisk | grep -Po "$currentDisk\w+(?=\s+3$)")
-        if [[ -n "${swapSize:-}" ]]; then
-            local swapPath="$(lsblk -ln -o PATH,PARTN $currentDisk | grep -Po "$currentDisk\w+(?=\s+4$)")"
-        fi
-    else
+    if [[ -n "${volumeGroup:-}" ]]; then
         local rootPath="/dev/${volumeGroup:-}/root"
         local homePath="/dev/${volumeGroup:-}/home"
         if [[ -n "${swapSize:-}" ]]; then
             local swapPath="/dev/${volumeGroup:-}/swap"
+        fi
+    elif [[ -n "${luksContainer:-}" ]]; then
+        local rootPath="/dev/mapper/${luksContainer}"
+        local homePath="/dev/mapper/crypthome"
+        if [[ -n "${swapSize:-}" ]]; then
+            local swapPath="/dev/mapper/cryptswap"
+        fi
+    else
+        local rootPath="$rootPartition"
+        local homePath=$(lsblk -ln -o PATH,PARTN $currentDisk | grep -Po "$currentDisk\w+(?=\s+3$)")
+        if [[ -n "${swapSize:-}" ]]; then
+            local swapPath="$(lsblk -ln -o PATH,PARTN $currentDisk | grep -Po "$currentDisk\w+(?=\s+4$)")"
         fi
     fi
 
@@ -436,6 +452,8 @@ function resolvePartitions () {
 }
 
 function main () {
+    umount -R /mnt 2>/dev/null || true
+
     if evalOpts $@; then
         checkVariables
     else
@@ -444,8 +462,11 @@ function main () {
         chooseMode
         choosePartitionStyle
     fi
+    # First disk cleanup to safely run wipefs
     diskCleanup
     diskPartition
+    # Second disk cleanup to actually remove signatures
+    diskCleanup
     resolvePartitions
     exit 0
 
