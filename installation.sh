@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 
 
-echo <<'EOF'
+cat <<'EOF'
            _                                                  _____ 
    ___ ___| | ___ __ ___   ___  _ __        _ __  _ __  _   _|___ / 
   / __/ _ \ |/ / '_ ` _ \ / _ \| '_ \ _____| '_ \| '_ \| | | | |_ \ 
@@ -23,6 +23,7 @@ readonly INVALID_ENCRYPTION=9
 readonly INSUFFICIENT_ROOT_SIZE=10
 readonly INVALID_NUMBER=11
 readonly SYMLINK_ERROR=12
+readonly PARAM_SPECIFIED=13
 
 readonly INTERACTIVE_MODE=100
 
@@ -95,25 +96,25 @@ function evalOpts () {
             (-d|--disk)
                 if ! lsblk "/dev/$2"; then
                     errorExit "Invalid disk name" $INVALID_DISK_NAME
-                elif [[ $(lsblk --bytes --nodeps --noheadings --output SIZE "/dev/$2") -lt (( $minDiskSize * 1073741824 )) ]]; then
+                elif [[ $(lsblk --bytes --nodeps --noheadings --output SIZE "/dev/$2") -lt $(( $minDiskSize * 1073741824 )) ]]; then
                     errorExit "Disk size must be at least $minDiskSize GiB" $INSUFFICIENT_DISK_SIZE
                 fi
 	            currentDisk="/dev/$2"
             ;;
             (-l|--localtime)
                 if [[ -z "$(timedatectl list-timezones | grep -oP "^$2$")" ]]; then
-                    errorExit "Timezone "$2" was not found" $INVALID_TIMEZONE
+                    errorExit "Timezone \"$2\" was not found" $INVALID_TIMEZONE
                 fi
                 timezone="$2" 
             ;;
             (-s|--swap)
-                if [[ -z "$(echo "$2" | grep -oP '^d+$')" ]]; then
+                if [[ -z "$(echo "$2" | grep -oP '^\d+$')" ]]; then
                     errorExit "Swap size must be of Integer type" $INVALID_NUMBER
                 fi
                 swapSize="$2"
             ;;
             (-r|--root)
-                if [[ -z "$(echo "$2" | grep -oP '^d+$')" ]]; then
+                if [[ -z "$(echo "$2" | grep -oP '^\d+$')" ]]; then
                     errorExit "Root size must be of Integer type" $INVALID_NUMBER
                 elif [[ "$2" -lt "$minRootSize" ]]; then
                     errorExit "Root size must be at least $minRootSize GiB" $INSUFFICIENT_ROOT_SIZE
@@ -122,14 +123,14 @@ function evalOpts () {
             ;;
             (-p|--partition)
                 if [[ "$2" != "GPT" && "$2" != "MBR" ]]; then
-                    errorExit "Partition style must be either "GPT" or "MBR", not $2" $INVALID_PARTITION
+                    errorExit "Partition style must be either \"GPT\" or \"MBR\", not $2" $INVALID_PARTITION
                 elif [[ "$2" == "GPT" && ! -d "/sys/firmware/efi" ]]; then 
                     errorExit "UEFI is not detected" $INVALID_UEFI
                 fi
                 partition="$2"
             ;;
             (-i|--interactive)
-                errorExit "Unknown parameter "$1" passed" $INTERACTIVE_MODE
+                return $INTERACTIVE_MODE
             ;;
         esac
         shift 2
@@ -137,8 +138,7 @@ function evalOpts () {
 
     shift 1
     if [[ -n ${1:-} ]]; then
-	    echo "Unknown param "$1" specified"
-	    exit $PARAM_SPECIFIED
+        errorExit "Unknown param \"$1\" specified" $PARAM_SPECIFIED
     fi
 }
 
@@ -153,9 +153,14 @@ function checkVariables () {
         errorExit "Root size was not specified" $INSUFFICIENT_ROOT_SIZE
     elif [[ -z "${partition:-}" ]]; then
         errorExit "Partition was not specified" $INVALID_PARTITION
-    elif [[ (( "$rootSize" + "${swapSize:="0"}" )) -ge "$minDiskSize" ]]; then
-        errorExit "Not enough space on /dev/$currentDisk for current configuration" $INSUFFICIENT_DISK_SIZE
+    elif [[ $(( $(( "$rootSize" + "${swapSize:-0}" )) * 1073741824 )) -ge $(lsblk --bytes --nodeps --noheadings --output SIZE "$currentDisk") ]]; then
+        errorExit "Not enough space on $currentDisk for current configuration" $INSUFFICIENT_DISK_SIZE
     fi
+}
+
+function getNames () {
+    read -rp "Enter your username: " username
+    read -rp "Enter your hostname: " hostname
 }
 
 function chooseDisk () {
@@ -163,10 +168,23 @@ function chooseDisk () {
     local diskName=
 
     select diskName in ${disks[@]}; do
+        read -rp "Enter rootSize: " rootSize
+        if [[ -z "$(echo "$rootSize" | grep -oP '^\d+$')" ]]; then
+            echo "Root size must be of integer type"
+            continue
+        fi
+        read -rp "Enter swapSize (default: 0): " swapSize
+        if [[ -z "${swapSize}" ]]; then
+            break
+        fi
+        if [[ -z "$(echo "$swapSize" | grep -oP '^\d+$')" ]]; then
+            echo "Swap size must be of integer type"
+            continue
+        fi
         echo "Enter your disk name or EXIT to exit the script: "
 	    if [[ "$diskName" == "EXIT" ]]; then
 	        exit 0
-        elif [[ $(lsblk --bytes --nodeps --noheadings --output SIZE /dev/$diskName) -ge (( $minDiskSize * 1073741824 )) ]]; then
+        elif [[ $(lsblk --bytes --nodeps --noheadings --output SIZE "/dev/$diskName") -ge $(( $minDiskSize * 1073741824 )) && $(( $(( "$rootSize" + "${swapSize:-0}" )) * 1073741824 )) -lt $(lsblk --bytes --nodeps --noheadings --output SIZE "$diskName") ]]; then
 	        currentDisk="/dev/$diskName"
     	    return 0 
         fi
@@ -204,7 +222,7 @@ function chooseMode () {
                 exit 0
             ;;
             (*)
-                echo "Unknown option "$mode""
+                echo "Unknown option \"$mode\""
             ;;
         esac
     done
@@ -240,7 +258,7 @@ function choosePartitionStyle () {
                 exit 0
             ;;
             (*)
-                echo "Unknown option "$part""
+                echo "Unknown option \"$part\""
             ;;
         esac
     done
@@ -248,28 +266,45 @@ function choosePartitionStyle () {
 
 function diskPartition () {
     wipefs -a "$currentDisk"
-    if [[ -n "$volumeGroup"]]; then
-        fdisk "$currentDisk" <<< $'g\nn\n1\n\n+1G\nt\n1\n1\nn\n2\n\n\nt\n2\n31\nw\n'
+    if [[ "$partition" == "GPT" ]]; then
+        if [[ -n "$volumeGroup" ]]; then
+            # lvm (alias lvm)
+            fdisk "$currentDisk" <<< $'g\nn\n1\n\n+1G\nt\n1\nn\n2\n\n\nt\n2\nlvm\nw\n'
+        elif [[ -n "${swapSize:-}" ]]; then
+            # root, home and swap (alias swap)
+            fdisk "$currentDisk" <<< "g\nn\n1\n\n+1G\nt\n1\nn\n2\n\n+${rootSize}G\nn\n4\n\n+${swapSize}G\nt\n4\nswap\nn\n3\n\n\nw\n"
+        else
+            # root, home
+            fdisk "$currentDisk" <<< "g\nn\n1\n\n+1G\nt\n1\nn\n2\n\n+${rootSize}G\nn\n3\n\n\nw\n"
+        fi
     else
-        # TODO: Make root, home, swap partitions using fdisk
-        exit 0
+        if [[ -n "$volumeGroup" ]]; then
+            # lvm (type 8e)
+            fdisk "$currentDisk" <<< "o\nn\np\n1\n\n+1G\na\nn\np\n2\n\n\nt\n2\nlvm\nw\n"
+        elif [[ -n "${swapSize:-}" ]]; then
+            # root, home and swap (alias swap)
+            fdisk "$currentDisk" <<< "o\nn\np\n1\n\n+1G\na\nn\np\n2\n\n+${rootSize}G\nn\np\n4\n\n+${swapSize}G\nt\n4\nswap\nn\np\n\n\nw\n"
+        else
+            # root, home
+            fdisk "$currentDisk" <<< "o\nn\np\n1\n\n+1G\na\nn\np\n2\n\n+${rootSize}G\nn\np\n3\n\n\nw\n"
+        fi
     fi
 }
 
 function luksSetup () {
     # $1 -> rootPartition
-    cryptsetup luksFormat --batch-mode $1
+    cryptsetup luksFormat $1
     cryptsetup open $1 $luksContainer
     if [[ -z "${volumeGroup:-}" ]]; then
         local partitions=
         local partition=
-        mapfile -t partitions < $(lsblk -ln -o PATH,PARTN $currentDisk | grep -oP "$currentDisk\w+(?=\s+[3-9]$)")
+        mapfile -t partitions < <(lsblk -ln -o PATH,PARTN $currentDisk | grep -oP "$currentDisk\w+(?=\s+[3-9]$)")
         local -a names
         names=( "crypthome" "cryptswap" )
         local -i index=0
         for partition in "${partitions[@]}"; do
             cryptsetup luksFormat --batch-mode "$partition"
-            cryptsetup open $partition $names[$index]
+            cryptsetup open "$partition" "${names[$index]}"
             (( ++index ))
         done
     fi
@@ -286,9 +321,9 @@ function lvmSetup () {
     fi
 
     if [[ -n "${swapSize:-}" ]]; then
-        lvcreate -L $swapSize -n swap $volumeGroup
+        lvcreate -L "${swapSize}G" -n swap $volumeGroup
     fi
-    lvcreate -L $rootSize -n root $volumeGroup
+    lvcreate -L "${rootSize}G" -n root $volumeGroup
     lvcreate -l 100%FREE -n home $volumeGroup
 }
 
@@ -305,8 +340,11 @@ function formatPartitions () {
         mkswap "$4"
         swapon "$4"
     fi
-    # TODO: Format MBR partition accordingly
-    mkfs.fat -F32 $1
+    if [[ "$partition" == "GPT" ]]; then
+        mkfs.fat -F32 $1
+    else
+        mkfs.ext4 $1
+    fi
     mount --mkdir $1 /mnt/boot
 }
 
@@ -336,7 +374,7 @@ function resolvePartitions () {
         local rootPath="/dev/${volumeGroup:-}/root"
         local homePath="/dev/${volumeGroup:-}/home"
         if [[ -n "${swapSize:-}" ]]; then
-            local swapPath="/dev/${volumeGroup:-}"
+            local swapPath="/dev/${volumeGroup:-}/swap"
         fi
     fi
 
@@ -347,9 +385,12 @@ function resolvePartitions () {
 function main () {
     exec 2>> "./errors.log"
 
+    umount -R /mnt
+
     if evalOpts $@; then
         checkVariables
     else
+        getNames
         chooseDisk
         chooseMode
         choosePartitionStyle
@@ -362,7 +403,7 @@ function main () {
     if ! ./symlinks.sh -u "$username" -p "$configPath" -a "create"; then
         echo "Installation incomplete"
         echo "Check the errors in "./errors.log""
-        ./symlinks -h
+        ./symlinks.sh -h
         exit $SYMLINK_ERROR
     fi
 
