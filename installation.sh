@@ -28,8 +28,8 @@ readonly PARAM_SPECIFIED=13
 readonly INTERACTIVE_MODE=100
 
 readonly scriptName=$(basename "$0")
-readonly minDiskSize="128" 
-readonly minRootSize="64"
+readonly minDiskSize=100 
+readonly minRootSize=64
 readonly configPath="./config/.LINK"
 
 function usage () {
@@ -63,7 +63,7 @@ function errorExit () {
 }
 
 function evalOpts () {
-    local opts=$(getopt -l "help,username:,disk:,localtime:,hostname:,swap:,root:,partition:,encryption:,lvm:,interactive" -o "hu:d:l:H:s:r:p:e:L:i" -- $@)
+    local opts=$(getopt -l "help,username:,disk:,localtime:,hostname:,swap:,root:,partition:,encryption:,lvm:,interactive" -o "hu:d:l:H:s:r:p:e:L:i" -- "$@")
     eval set -- "$opts"
 
     if [[ "$1" == "--" && "$#" == 1 ]]; then
@@ -153,42 +153,57 @@ function checkVariables () {
         errorExit "Root size was not specified" $INSUFFICIENT_ROOT_SIZE
     elif [[ -z "${partition:-}" ]]; then
         errorExit "Partition was not specified" $INVALID_PARTITION
-    elif [[ $(( $(( "$rootSize" + "${swapSize:-0}" )) * 1073741824 )) -ge $(lsblk --bytes --nodeps --noheadings --output SIZE "$currentDisk") ]]; then
+    elif [[ -z "${currentDisk:-}" ]]; then
+        errorExit "Disk was not specified" $INVALID_DISK_NAME
+    elif [[ $(( $(( $rootSize + ${swapSize:-0} + 1 )) * 1073741824 )) -ge $(lsblk --bytes --nodeps --noheadings --output SIZE "$currentDisk") ]]; then
         errorExit "Not enough space on $currentDisk for current configuration" $INSUFFICIENT_DISK_SIZE
     fi
 }
 
-function getNames () {
+function setMiscVariables () {
     read -rp "Enter your username: " username
     read -rp "Enter your hostname: " hostname
+    while true; do
+        read -rp "Enter your timezone: " timezone 
+        if [[ -n "$(timedatectl list-timezones | grep -oP "^$timezone$")" ]]; then
+            break
+        fi
+    done
 }
 
 function chooseDisk () {
     local disks=( $(lsblk --nodeps --noheadings --output NAME) "EXIT" )
     local diskName=
 
-    select diskName in ${disks[@]}; do
-        read -rp "Enter rootSize: " rootSize
-        if [[ -z "$(echo "$rootSize" | grep -oP '^\d+$')" ]]; then
-            echo "Root size must be of integer type"
+    while true; do
+        read -rp "Enter rootSize (Minimum $minRootSize GiB): " rootSize
+        if [[ -z "$(echo "$rootSize" | grep -oP '^\d+$')" || $rootSize -lt $minRootSize ]]; then
+            echo "Invalid root size"
             continue
         fi
         read -rp "Enter swapSize (default: 0): " swapSize
-        if [[ -z "${swapSize}" ]]; then
-            break
-        fi
-        if [[ -z "$(echo "$swapSize" | grep -oP '^\d+$')" ]]; then
-            echo "Swap size must be of integer type"
+        if [[ -n "${swapSize:-}" && -z "$(echo "$swapSize" | grep -oP '^\d+$')" ]]; then
+            echo "Invalid swap size"
             continue
         fi
-        echo "Enter your disk name or EXIT to exit the script: "
+        break
+    done
+
+    echo "Enter your disk name or EXIT to exit the script: "
+    select diskName in ${disks[@]}; do
 	    if [[ "$diskName" == "EXIT" ]]; then
 	        exit 0
-        elif [[ $(lsblk --bytes --nodeps --noheadings --output SIZE "/dev/$diskName") -ge $(( $minDiskSize * 1073741824 )) && $(( $(( "$rootSize" + "${swapSize:-0}" )) * 1073741824 )) -lt $(lsblk --bytes --nodeps --noheadings --output SIZE "$diskName") ]]; then
+        elif [[ $(lsblk --bytes --nodeps --noheadings --output SIZE "/dev/$diskName") -ge $(( $minDiskSize * 1073741824 )) && $(( $(( $rootSize + ${swapSize:-0} + 1 )) * 1073741824 )) -lt $(lsblk --bytes --nodeps --noheadings --output SIZE "/dev/$diskName") ]]; then
 	        currentDisk="/dev/$diskName"
     	    return 0 
+        else
+            echo "Disk size must be at least $minDiskSize GiB"
+            local response=
+            read -rp "Do you want to reenter root size and swap size, or choose different disk (yes/no): " response
+            if [[ "${response,,}" == "yes" ]]; then
+                chooseDisk
+            fi
         fi
-        echo "Disk size must be at least $minDiskSize GiB"
     done
 }
 
@@ -196,11 +211,8 @@ function chooseMode () {
     local modes=( "LVM+LUKS" "LVM" "LUKS" "NONE" "EXIT" )
     local mode=
 
-    volumeGroup=
-    luksContainer=
-
+    echo "Enter your mode, or EXIT to exit the script: "
     select mode in "${modes[@]}"; do
-        echo "Enter your mode, or EXIT to exit the script: "
         case $mode in
             ("LVM+LUKS")
                 read -rp "Enter LVM volume group name: " volumeGroup
@@ -223,6 +235,7 @@ function chooseMode () {
             ;;
             (*)
                 echo "Unknown option \"$mode\""
+                echo "Enter your mode, or EXIT to exit the script: "
             ;;
         esac
     done
@@ -232,15 +245,15 @@ function choosePartitionStyle () {
     local partitions=( "GPT" "MBR" "EXIT" )
     local part=
 
+    echo "Enter your partition style, or EXIT to exit the script: "
     select part in "${partitions[@]}"; do
-        echo "Enter your partition style, or EXIT to exit the script: "
         case $part in 
             (MBR)
                 if [[ -d "/sys/firmware/efi" ]]; then
                     echo "UEFI is detected"
-                    local -l response=
+                    local response=
                     read -rp "Are you sure you want to continue with MBR? yes/no: " response
-                    if [[ "$response" == "no" ]]; then
+                    if [[ "${response,,}" == "no" ]]; then
                         continue
                     fi
                 fi
@@ -259,41 +272,82 @@ function choosePartitionStyle () {
             ;;
             (*)
                 echo "Unknown option \"$part\""
+                echo "Enter your partition style, or EXIT to exit the script: "
             ;;
         esac
     done
 }
 
+function diskCleanup () {
+    # Remove existing mapper names
+    local mapperNames=
+    local name=
+    mapfile -t mapperNames < <(lsblk -ln -o PATH,PARTN $currentDisk | grep -oP "/dev/mapper/\K\w+")
+    for name in "${mapperNames[@]}"; do
+        cryptsetup close "$name" 2>/dev/null
+    done
+
+    # Deactivate existing volume groups on partitions of currentDisk
+    local volumeGroups=
+    local vg=
+    mapfile -t volumeGroups < <(pvs --noheadings -o vg_name,pv_name | grep -oP "\S+(?=\s+$currentDisk\w+\s*$)")
+    for vg in "${volumeGroups[@]}"; do
+        vgchange -a n "$vg"
+    done
+}
+
 function diskPartition () {
-    wipefs -a "$currentDisk"
+    if ! wipefs -a "$currentDisk"; then
+        echo "Disk $currentDisk is busy, rebooting"
+        reboot
+    fi
     if [[ "$partition" == "GPT" ]]; then
-        if [[ -n "$volumeGroup" ]]; then
+        if [[ -n "${volumeGroup:-}" ]]; then
             # lvm (alias lvm)
             fdisk "$currentDisk" <<< $'g\nn\n1\n\n+1G\nt\n1\nn\n2\n\n\nt\n2\nlvm\nw\n'
         elif [[ -n "${swapSize:-}" ]]; then
             # root, home and swap (alias swap)
-            fdisk "$currentDisk" <<< "g\nn\n1\n\n+1G\nt\n1\nn\n2\n\n+${rootSize}G\nn\n4\n\n+${swapSize}G\nt\n4\nswap\nn\n3\n\n\nw\n"
+            fdisk "$currentDisk" <<< $'g\nn\n1\n\n+1G\nt\n1\nn\n2\n\n+'"${rootSize}"$'G\nn\n4\n\n+'"${swapSize}"$'G\nt\n4\nswap\nn\n3\n\n\nw\n'
         else
             # root, home
-            fdisk "$currentDisk" <<< "g\nn\n1\n\n+1G\nt\n1\nn\n2\n\n+${rootSize}G\nn\n3\n\n\nw\n"
+            fdisk "$currentDisk" <<< $'g\nn\n1\n\n+1G\nt\n1\nn\n2\n\n+'"${rootSize}"$'G\nn\n3\n\n\nw\n'
         fi
     else
-        if [[ -n "$volumeGroup" ]]; then
+        if [[ -n "${volumeGroup:-}" ]]; then
             # lvm (type 8e)
-            fdisk "$currentDisk" <<< "o\nn\np\n1\n\n+1G\na\nn\np\n2\n\n\nt\n2\nlvm\nw\n"
+            fdisk "$currentDisk" <<< $'o\nn\np\n1\n\n+1G\na\nn\np\n2\n\n\nt\n2\nlvm\nw\n'
         elif [[ -n "${swapSize:-}" ]]; then
             # root, home and swap (alias swap)
-            fdisk "$currentDisk" <<< "o\nn\np\n1\n\n+1G\na\nn\np\n2\n\n+${rootSize}G\nn\np\n4\n\n+${swapSize}G\nt\n4\nswap\nn\np\n\n\nw\n"
+            fdisk "$currentDisk" <<< $'o\nn\np\n1\n\n+1G\na\nn\np\n2\n\n+'"${rootSize}"$'G\nn\np\n4\n\n+'"${swapSize}"$'G\nt\n4\nswap\nn\np\n\n\nw\n'
         else
             # root, home
-            fdisk "$currentDisk" <<< "o\nn\np\n1\n\n+1G\na\nn\np\n2\n\n+${rootSize}G\nn\np\n3\n\n\nw\n"
+            fdisk "$currentDisk" <<< $'o\nn\np\n1\n\n+1G\na\nn\np\n2\n\n+'"${rootSize}"$'G\nn\np\n3\n\n\nw\n'
         fi
     fi
+    partprobe "$currentDisk"
+    udevadm settle
 }
 
 function luksSetup () {
     # $1 -> rootPartition
-    cryptsetup luksFormat $1
+    local password=
+    local confirm=
+    while true; do
+        read -s -rp "Enter LUKS passphrase: " password
+        echo
+        if [[ -z "$password" ]]; then
+            echo "Password cannot be empty"
+            continue
+        fi
+        read -s -rp "Confirm LUKS passphrase: " confirm
+        echo
+        if [[ "$password" != "$confirm" ]]; then
+            echo "Passprases do not match"
+            continue
+        fi
+        break
+    done
+    echo -n "$password" | cryptsetup luksFormat -q --key-file=- "$1"
     cryptsetup open $1 $luksContainer
     if [[ -z "${volumeGroup:-}" ]]; then
         local partitions=
@@ -303,7 +357,7 @@ function luksSetup () {
         names=( "crypthome" "cryptswap" )
         local -i index=0
         for partition in "${partitions[@]}"; do
-            cryptsetup luksFormat --batch-mode "$partition"
+            echo -n "$password" | cryptsetup luksFormat -q --key-file=- "$partition"
             cryptsetup open "$partition" "${names[$index]}"
             (( ++index ))
         done
@@ -313,10 +367,10 @@ function luksSetup () {
 function lvmSetup () {
     # $1 -> rootPartition
     if [[ -z "${luksContainer:-}" ]]; then
-        pvcreate "$1"
+        pvcreate -f "$1"
         vgcreate "$volumeGroup" "$1"
     else
-        pvcreate "/dev/mapper/$luksContainer"
+        pvcreate -f "/dev/mapper/$luksContainer"
         vgcreate $volumeGroup "/dev/mapper/$luksContainer"
     fi
 
@@ -349,7 +403,7 @@ function formatPartitions () {
 }
 
 function resolvePartitions () {
-    local rootPartition=$(lsblk -ln -o PATH,PARTN $currentDisk | grep -Po "$currentDisk\w+(?=\s+2$)")
+    local rootPartition="$(lsblk -ln -o PATH,PARTN $currentDisk | grep -Po "$currentDisk\w+(?=\s+2$)")"
 
     # Decrypt rootPartition if LVM is enabled, otherwise decrypt all of the partitions
     if [[ -n "${luksContainer:-}" ]]; then
@@ -378,25 +432,22 @@ function resolvePartitions () {
         fi
     fi
 
-    # Format partitions
     formatPartitions $bootPath $rootPath $homePath "${swapPath:-}"
 }
 
 function main () {
-    exec 2>> "./errors.log"
-
-    umount -R /mnt
-
     if evalOpts $@; then
         checkVariables
     else
-        getNames
+        setMiscVariables
         chooseDisk
         chooseMode
         choosePartitionStyle
     fi
+    diskCleanup
     diskPartition
     resolvePartitions
+    exit 0
 
     # TODO: Install necessary packages and configure the system
 
