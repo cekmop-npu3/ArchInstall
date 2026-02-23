@@ -1,4 +1,6 @@
-#!/bin/bash
+#!/usr/bin/bash
+
+# TODO: Add interactive mode
 
 set -euo pipefail
 
@@ -110,6 +112,7 @@ function parseConfig () {
     local -i lineCount=0
 
     for args in "${targets[@]}"; do
+        # TODO: Check for absolute path in target
 	    target=$(echo "$args" | grep -oP '^\S+(?=\s+)')
 	    link=$(echo "$args" | grep -oP '\s+\K.+$')
 
