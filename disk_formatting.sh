@@ -21,6 +21,7 @@ declare -r scriptName=$(basename "$0")
 declare -r defaultPartitionTable="GPT"
 declare -r volumeGroup="vg"
 declare -ar partitions=( "root" "home" "swap" )
+declare -ar luksPartitions=( "cryptroot" "crypthome" "cryptswap" "cryptlvm" )
 
 # Size in GiB
 declare -ir minDiskSize=128 
@@ -34,7 +35,7 @@ Usage:
  $scriptName [-i|--interactive]
 
 Options:
- -d, --disk <disk>                            Disk to use
+ -d, --disk <disk>                            Disk to use "/dev/disk_name"
  -s, --swap <swap_size>                       Swap size in GiB in a format <Integer>. Disabled by default
  -r, --root <root_size>                       Root size in GiB in a format <Integer>. Default/Minimum $minRootSize GiB
  -p, --partition <part_table>                 Either <GPT> or <MBR>. Default $defaultPartitionTable
@@ -164,7 +165,9 @@ function checkDisk () {
 
 function inputPassword () {
     read -rsp "Enter your luks password: " password
+    echo
     read -rsp "Retype your luks password: " verifyPass
+    echo
 }
 
 function chooseRootSize () {
@@ -234,8 +237,8 @@ function diskCleanup () {
     swapoff -a
 
     # Remove existing mapper names
-    local mapperNames=
-    local name=
+    local mapperNames
+    local name
     mapfile -t mapperNames < <(lsblk -ln -o PATH,PARTN $disk | grep -oP "/dev/mapper/\K\S+")
     local i=
     for (( i="${#mapperNames[@]}" - 1; i>=0; i-- )); do 
@@ -285,36 +288,36 @@ function diskPartition () {
 function luksSetup () {
     local rootPartition=$(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+2$)")
     luksPartitionUUID=$(blkid -s UUID -o value $rootPartition) 
-    echo "$password" | cryptsetup luksFormat -q --key-file=- "$rootPartition"
-    echo "$password" | cryptsetup open -q --key-file=- $rootPartition "${partitions[0]}"
+
     if (( ${lvm:-1} )); then
-        local -a diskPartitions=
-        local part=
-        mapfile -t diskPartitions < <(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+[3-9]$)")
-        local -i index=1
-        for part in "${diskPartitions[@]}"; do
-            echo "$password" | cryptsetup luksFormat -q --key-file=- "$part"
-            echo "$password" | cryptsetup open -q --key-file=- "$part" "${partitions[$index]}"
-            (( ++index ))
+        local -a diskPartitions
+        mapfile -t diskPartitions < <(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+[2-9]$)")
+        local -i index
+        for (( index=0; index<${#diskPartitions[@]}; ++index )); do
+            echo "$password" | cryptsetup luksFormat -q --key-file=- "${diskPartitions[$index]}"
+            echo "$password" | cryptsetup open -q --key-file=- "${diskPartitions[$index]}" "${luksPartitions[$index]}"
         done
+    else
+        echo "$password" | cryptsetup luksFormat -q --key-file=- "$rootPartition"
+        echo "$password" | cryptsetup open -q --key-file=- $rootPartition "${luksPartitions[3]}"
     fi
 }
 
 function lvmSetup () {
     if (( ! ${luks:-1} )); then
-        pvcreate -f "/dev/mapper/${partitions[0]}"
-        vgcreate $volumeGroup -f "/dev/mapper/${partitions[0]}"
+        pvcreate -ff "/dev/mapper/${luksPartitions[3]}"
+        vgcreate $volumeGroup -f "/dev/mapper/${luksPartitions[3]}"
     else
         local rootPartition=$(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+2$)")
-        pvcreate -f "$rootPartition"
+        pvcreate -ff "$rootPartition"
         vgcreate -f "$volumeGroup" "$rootPartition"
     fi
 
     if [[ -n "${swapSize:-}" ]]; then
-        lvcreate -L "${swapSize}G" -n swap $volumeGroup
+        lvcreate -L "${swapSize}G" -n ${partitions[2]} $volumeGroup
     fi
-    lvcreate -L "${rootSize}G" -n root $volumeGroup
-    lvcreate -l 100%FREE -n home $volumeGroup
+    lvcreate -L "${rootSize}G" -n ${partitions[0]} $volumeGroup
+    lvcreate -l 100%FREE -n ${partitions[1]} $volumeGroup
 }
 
 function formatPartitions () {
@@ -334,15 +337,15 @@ function formatPartitions () {
     mount --mkdir $bootPath /mnt/boot
 }
 
-function setPathes () {
-    # $1 -> rootPath
-    # $2 -> homePath
-    # $3 -> swapPath
+function setPaths () {
+    # $1 -> (rootPath homePath swapPath)
     bootPath=$(lsblk -ln -o PATH,PARTN $disk | grep -Po "$disk\w+(?=\s+1$)")
-    rootPath="$1"
-    homePath="$2"
+    local paths
+    mapfile -t paths <<< "$1"
+    rootPath="${paths[0]}"
+    homePath="${paths[1]}"
     if [[ -n "${swapSize:-}" ]]; then
-        swapPath="$3"
+        swapPath="${paths[2]}"
     fi
 }
 
@@ -364,7 +367,7 @@ function verify () {
 }
 
 function main () {
-    umount -R /mnt >&2 || true
+    umount -R /mnt &>/dev/null || true
 
     local notInteractive=0
     evalOpts "$@" || notInteractive=$?
@@ -382,18 +385,18 @@ function main () {
     if (( ! ${luks:-1} )); then
         verify $notInteractive inputPassword checkPassword
         luksSetup 
-        # If lvm is not set then call setPathes
-        (( ! ${lvm:-1} )) || setPathes "/dev/mapper/${partitions[0]}" "/dev/mapper/${partitions[1]}" "/dev/mapper/${partitions[2]}"
+        if (( ${lvm:-1} )); then
+            setPaths "$(printf "/dev/mapper/%s\n" "${luksPartitions[@]}")"
+        fi
     fi
     if (( ! ${lvm:-1} )); then 
         lvmSetup 
-        setPathes "/dev/${volumeGroup-}/${partitions[0]}" "/dev/${volumeGroup-}/${partitions[1]}" "/dev/${volumeGroup-}/${partitions[2]}"
+        setPaths "$(printf "/dev/$volumeGroup/%s\n" "${partitions[@]}")"
     elif (( ${luks:-1} )); then
-        # Default setup without both lvm and luks
-        setPathes "$(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+2$)")" "$(lsblk -ln -o PATH,PARTN $disk | grep -Po "$disk\w+(?=\s+3$)")" "$(lsblk -ln -o PATH,PARTN $disk | grep -Po "$disk\w+(?=\s+4$)")"
+        setPaths "$(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+[2-9]$)")" 
     fi
 
-    formatPartitions $bootPath $rootPath $homePath "${swapPath:-}"
+    formatPartitions $bootPath $rootPath $homePath "${swapPath-}"
 }
 
 main $@
