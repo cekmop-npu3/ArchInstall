@@ -1,7 +1,6 @@
 #!/usr/bin/bash
 
 # TODO: Redirect stdout/stderr of some commands in /dev/null
-#       Provide an option for a passphrase in non-interactive mode 
 
 set -euo pipefail
 
@@ -68,12 +67,12 @@ function evalOpts () {
                 usage
                 exit 0
             ;;
-            (-l|--luks)
+            (-L|--luks)
                 luks=0
                 password="$2"
                 shift 2
             ;;
-            (-L|--lvm)
+            (-l|--lvm)
                 lvm=0
                 shift 1
             ;;
@@ -105,12 +104,12 @@ function evalOpts () {
 
 function checkPassword () {
     if [[ -n "$(echo "${password:-}" | grep -oP "^-$")" ]]; then 
-        password=$PASSWORD
+        password="${PASSWORD-}"
     fi
     if [[ -z "${password:-}" ]]; then
         echo "Password cannot be empty"
         return $INVALID_PASSWORD
-    elif [[ "$password" != "${verifyPass-}" ]]; then
+    elif [[ "${verifyPass+set}" && "$password" != "${verifyPass-}" ]]; then
         echo "Passwords don't match"
         return $INVALID_PASSWORD
     fi
