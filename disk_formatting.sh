@@ -431,11 +431,14 @@ function main () {
     toggleOutput
 
     # Echo these variables so that they can be used in boot configuration script via eval 
+    echo "lvm=\"${lvm:-1}\""
+    echo "luks=\"${luks:-1}\""
     echo "luksUUID=\"${luksUUID-}\""
-    echo "rootPath=\"$rootPath\""
     if (( ! ${lvm:-1} )); then
+        echo "rootPath=\"/dev/mapper/$volumeGroup-${partitions[0]}\""
         echo "rootName=\"${luksPartitions[3]}\""
     else
+        echo "rootPath=\"$rootPath\""
         echo "rootName=\"${luksPartitions[0]}\""
     fi
 }
