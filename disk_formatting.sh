@@ -241,7 +241,7 @@ function diskCleanup () {
     mapfile -t mapperNames < <(lsblk -ln -o PATH,PARTN $disk | grep -oP "/dev/mapper/\K\S+")
     local i=
     for (( i="${#mapperNames[@]}" - 1; i>=0; i-- )); do 
-        cryptsetup close "${mapperNames[i]}" 2>/dev/null
+        cryptsetup close "${mapperNames[i]}" 
     done
 
     # Deactivate existing volume groups on partitions of current disk
@@ -259,25 +259,25 @@ function diskPartition () {
     if [[ "$partition" == "GPT" ]]; then
         if (( ! ${lvm:-1} )); then
             # lvm (alias lvm)
-            fdisk "$disk" <<< $'g\nn\n1\n\n+1G\nt\n1\nn\n2\n\n\nt\n2\nlvm\nw\n' &>/dev/null
+            fdisk "$disk" <<< $'g\nn\n1\n\n+1G\nt\n1\nn\n2\n\n\nt\n2\nlvm\nw\n'
         elif [[ -n "${swapSize-}" ]]; then
             # root, home and swap (alias swap)
-            fdisk "$disk" <<< $'g\nn\n1\n\n+1G\nt\n1\nn\n2\n\n+'"${rootSize}"$'G\nn\n4\n\n+'"${swapSize}"$'G\nt\n4\nswap\nn\n3\n\n\nw\n' &>/dev/null
+            fdisk "$disk" <<< $'g\nn\n1\n\n+1G\nt\n1\nn\n2\n\n+'"${rootSize}"$'G\nn\n4\n\n+'"${swapSize}"$'G\nt\n4\nswap\nn\n3\n\n\nw\n'
         else
             # root, home
-            fdisk "$disk" <<< $'g\nn\n1\n\n+1G\nt\n1\nn\n2\n\n+'"${rootSize}"$'G\nn\n3\n\n\nw\n' &>/dev/null
+            fdisk "$disk" <<< $'g\nn\n1\n\n+1G\nt\n1\nn\n2\n\n+'"${rootSize}"$'G\nn\n3\n\n\nw\n'
         fi
     else
         if (( ! ${lvm:-1} )); then
             # lvm (alias lvm)
-            fdisk "$disk" <<< $'o\nn\np\n1\n\n+1G\na\nn\np\n2\n\n\nt\n2\nlvm\nw\n' &>/dev/null
+            fdisk "$disk" <<< $'o\nn\np\n1\n\n+1G\na\nn\np\n2\n\n\nt\n2\nlvm\nw\n'
         elif [[ -n "${swapSize-}" ]]; then
             # TODO Change swap type
             # root, home and swap (alias swap)
-            fdisk "$disk" <<< $'o\nn\np\n1\n\n+1G\na\nn\np\n2\n\n+'"${rootSize}"$'G\nn\np\n4\n\n+'"${swapSize}"$'G\nt\n4\nswap\nn\np\n\n\nw\n' &>/dev/null
+            fdisk "$disk" <<< $'o\nn\np\n1\n\n+1G\na\nn\np\n2\n\n+'"${rootSize}"$'G\nn\np\n4\n\n+'"${swapSize}"$'G\nt\n4\nswap\nn\np\n\n\nw\n'
         else
             # root, home
-            fdisk "$disk" <<< $'o\nn\np\n1\n\n+1G\na\nn\np\n2\n\n+'"${rootSize}"$'G\nn\np\n3\n\n\nw\n' &>/dev/null
+            fdisk "$disk" <<< $'o\nn\np\n1\n\n+1G\na\nn\np\n2\n\n+'"${rootSize}"$'G\nn\np\n3\n\n\nw\n'
         fi
     fi
     partprobe "$disk"
@@ -286,7 +286,7 @@ function diskPartition () {
 
 function luksSetup () {
     local rootPartition=$(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+2$)")
-    luksPartitionUUID=$(blkid -s UUID -o value $rootPartition) 
+    luksUUID="$(blkid -s UUID -o value $rootPartition)"
 
     if (( ${lvm:-1} )); then
         local -a diskPartitions
@@ -357,7 +357,7 @@ function verify () {
     local checkFunc="$3"
     while true; do
         # If interactive then chooseFunc gets called
-        (( ! notInteractive )) || $chooseFunc
+        (( ! notInteractive )) || { toggleOutput ; $chooseFunc ; toggleOutput; }
         # Save the status code of a checkFunc
         { $checkFunc && ! (( code = $? )); } || ! (( code = $? ))
         # If code != 0 then exit if not interactive
@@ -365,8 +365,37 @@ function verify () {
     done
 }
 
+function getAvailableDescriptors () {
+    # Echoes the list of 2 available descriptors 
+    # to save stdout and stderr to
+    local -a fds=( $(ls "/proc/$$/fd") )
+    local -i stdout=0
+    local -i stderr=1
+    local -i fd
+    for fd in "${fds[@]}"; do
+        if (( fd > stderr )) || ! { { (( fd > stdout )) && (( stderr = fd + 1 )); } || ! (( stderr = fd + 2 )) || (( stdout = fd + 1 )); }; then
+            break
+        fi
+    done
+    echo "$stdout $stderr"
+}
+
+function toggleOutput () {
+    if [[ $(readlink "/proc/$$/fd/1") != "/dev/null" ]]; then
+        eval "exec ${fds[0]}>&1"
+        eval "exec ${fds[1]}>&2"
+        exec &>/dev/null
+    else
+        eval "exec 1>&${fds[0]}"
+        eval "exec 2>&${fds[1]}"
+    fi
+}
+
 function main () {
-    umount -R /mnt &>/dev/null || true
+    declare -a fds=( $(getAvailableDescriptors) )
+    toggleOutput
+
+    umount -R /mnt || true
 
     local notInteractive=0
     evalOpts "$@" || notInteractive=$?
@@ -375,7 +404,7 @@ function main () {
     verify $notInteractive chooseSwapSize checkSwapSize
     verify $notInteractive chooseDisk checkDisk
     verify $notInteractive choosePartitionTable checkPartitionTable
-    (( ! notInteractive )) || chooseMode
+    (( ! notInteractive )) || { toggleOutput ; chooseMode ; toggleOutput; }
 
     diskCleanup
     diskPartition
@@ -396,6 +425,19 @@ function main () {
     fi
 
     formatPartitions $bootPath $rootPath $homePath "${swapPath-}"
+
+    genfstab -U /mnt > /mnt/etc/fstab
+
+    toggleOutput
+
+    # Echo these variables so that they can be used in boot configuration script via eval 
+    echo "luksUUID=\"${luksUUID-}\""
+    echo "rootPath=\"$rootPath\""
+    if (( ! ${lvm:-1} )); then
+        echo "rootName=\"${luksPartitions[3]}\""
+    else
+        echo "rootName=\"${luksPartitions[0]}\""
+    fi
 }
 
 main $@
