@@ -1,20 +1,18 @@
 #!/usr/bin/bash
 
-# TODO: Redirect stdout/stderr of some commands in /dev/null
+# TODO: Delete all echo messages with errors; provide error codes section in help
 
 set -euo pipefail
+
+source ./utils.sh
 
 declare -r INSUFFICIENT_DISK_SIZE=1
 declare -r INVALID_PARTITION=2
 declare -r INVALID_DISK_NAME=3
 declare -r INVALID_UEFI=4
-declare -r INVALID_ENCRYPTION=5
 declare -r INSUFFICIENT_ROOT_SIZE=6
 declare -r INVALID_NUMBER=7
-declare -r PARAM_SPECIFIED=8
-declare -r INVALID_PASSWORD=9
-
-declare -r INTERACTIVE_MODE=10
+declare -r INVALID_PASSWORD=8
 
 declare -r scriptName=$(basename "$0")
 declare -r defaultPartitionTable="GPT"
@@ -42,24 +40,25 @@ Options:
  -L, --luks <pass>                            Enables LUKS encryption. Disabled by default. If the password given is "-", reads from PASSWORD env variable
 
  -h, --help                                   Display this help
+
+Exit codes:
+ INSUFFICIENT_DISK_SIZE=1                     Not enough space on disk for current configuration
+ INVALID_PARTITION=2                          Must be either "GPT" or "MBR"
+ INVALID_DISK_NAME=3                          Disk name is invalid or not specified
+ INVALID_UEFI=4                               UEFI is not detected
+ INSUFFICIENT_ROOT_SIZE=6                     Root size must be at least $minRootSize GiB
+ INVALID_NUMBER=7                             Nan was passed as a parameter
+ INVALID_PASSWORD=8                           Password is empty or passwords don't match
 EOF
 }
 
 function evalOpts () {
     local opts=$(getopt -l "help,disk:,swap:,root:,partition:,luks:,lvm,interactive" -o "hd:s:r:p:lL:i" -- "$@")
     eval set -- "$opts"
-
-    if [[ "$1" == "--" && "$#" == 1 ]]; then
-        usage
-        exit 0
-    fi
-
-    if [[ "$1" == "-i" || "$1" == "--interactive" ]] && [[ "$#" == 2 ]]; then
-        return 100
-    else
-        opts=$(getopt -l "help,disk:,swap:,root:,partition:,luks:,lvm" -o "hd:s:r:p:lL:" -- "$@")
-        eval set -- "$opts"
-    fi
+    noOptions "$@"
+    isNotInteractive $# "-i" "--interactive" $1 || return $?
+    opts=$(getopt -l "help,disk:,swap:,root:,partition:,luks:,lvm" -o "hd:s:r:p:lL:" -- "$@")
+    eval set -- "$opts"
 
     while [[ $1 != "--" ]]; do
         case $1 in
@@ -95,11 +94,7 @@ function evalOpts () {
         esac
     done
 
-    shift 1
-    if [[ -n ${1:-} ]]; then
-        echo "Unknown param \"$1\" specified" >&2
-        return $PARAM_SPECIFIED
-    fi
+    handleParams "$@"
 }
 
 function checkPassword () {
@@ -285,9 +280,6 @@ function diskPartition () {
 }
 
 function luksSetup () {
-    local rootPartition=$(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+2$)")
-    luksUUID="$(blkid -s UUID -o value $rootPartition)"
-
     if (( ${lvm:-1} )); then
         local -a diskPartitions
         mapfile -t diskPartitions < <(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+[2-9]$)")
@@ -297,6 +289,7 @@ function luksSetup () {
             echo "$password" | cryptsetup open -q --key-file=- "${diskPartitions[$index]}" "${luksPartitions[$index]}"
         done
     else
+        local rootPartition=$(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+2$)")
         echo "$password" | cryptsetup luksFormat -q --key-file=- "$rootPartition"
         echo "$password" | cryptsetup open -q --key-file=- $rootPartition "${luksPartitions[3]}"
     fi
@@ -337,81 +330,41 @@ function formatPartitions () {
 }
 
 function setPaths () {
-    # $1 -> (rootPath homePath swapPath)
     bootPath=$(lsblk -ln -o PATH,PARTN $disk | grep -Po "$disk\w+(?=\s+1$)")
-    local paths
-    mapfile -t paths <<< "$1"
-    rootPath="${paths[0]}"
-    homePath="${paths[1]}"
+    local arrayOfPaths="$1"
+    mapfile -t arrayOfPaths <<< "$arrayOfPaths"
+    rootPath="${arrayOfPaths[0]}"
+    homePath="${arrayOfPaths[1]}"
     if [[ -n "${swapSize:-}" ]]; then
-        swapPath="${paths[2]}"
-    fi
-}
-
-function verify () {
-    # If checkFunc returns non-zero status code
-    # and the script is interactive - keeps calling chooseFunc.
-    # If the script is not interactive - exits
-    local notInteractive="$1"
-    local chooseFunc="$2"
-    local checkFunc="$3"
-    while true; do
-        # If interactive then chooseFunc gets called
-        (( ! notInteractive )) || { toggleOutput ; $chooseFunc ; toggleOutput; }
-        # Save the status code of a checkFunc
-        { $checkFunc && ! (( code = $? )); } || ! (( code = $? ))
-        # If code != 0 then exit if not interactive
-        { (( ! code )) && break; } || { (( notInteractive )) || exit $code; }
-    done
-}
-
-function getAvailableDescriptors () {
-    # Echoes the list of 2 available descriptors 
-    # to save stdout and stderr to
-    local -a fds=( $(ls "/proc/$$/fd") )
-    local -i stdout=0
-    local -i stderr=1
-    local -i fd
-    for fd in "${fds[@]}"; do
-        if (( fd > stderr )) || ! { { (( fd > stdout )) && (( stderr = fd + 1 )); } || ! (( stderr = fd + 2 )) || (( stdout = fd + 1 )); }; then
-            break
-        fi
-    done
-    echo "$stdout $stderr"
-}
-
-function toggleOutput () {
-    if [[ $(readlink "/proc/$$/fd/1") != "/dev/null" ]]; then
-        eval "exec ${fds[0]}>&1"
-        eval "exec ${fds[1]}>&2"
-        exec &>/dev/null
-    else
-        eval "exec 1>&${fds[0]}"
-        eval "exec 2>&${fds[1]}"
+        swapPath="${arrayOfPaths[2]}"
     fi
 }
 
 function main () {
-    declare -a fds=( $(getAvailableDescriptors) )
-    toggleOutput
+    local fds="$(getAvailableDescriptors)"
+    toggleOutput $fds
 
     umount -R /mnt || true
 
     local notInteractive=0
     evalOpts "$@" || notInteractive=$?
 
+    toggleOutput $fds
     verify $notInteractive chooseRootSize checkRootSize
     verify $notInteractive chooseSwapSize checkSwapSize
     verify $notInteractive chooseDisk checkDisk
     verify $notInteractive choosePartitionTable checkPartitionTable
-    (( ! notInteractive )) || { toggleOutput ; chooseMode ; toggleOutput; }
+    verify $notInteractive chooseMode :
+    toggleOutput $fds
 
     diskCleanup
     diskPartition
     diskCleanup
 
     if (( ! ${luks:-1} )); then
+        toggleOutput $fds
         verify $notInteractive inputPassword checkPassword
+        toggleOutput $fds
         luksSetup 
         if (( ${lvm:-1} )); then
             setPaths "$(printf "/dev/mapper/%s\n" "${luksPartitions[@]}")"
@@ -426,21 +379,7 @@ function main () {
 
     formatPartitions $bootPath $rootPath $homePath "${swapPath-}"
 
-    genfstab -U /mnt > /mnt/etc/fstab
-
-    toggleOutput
-
-    # Echo these variables so that they can be used in boot configuration script via eval 
-    echo "lvm=\"${lvm:-1}\""
-    echo "luks=\"${luks:-1}\""
-    echo "luksUUID=\"${luksUUID-}\""
-    if (( ! ${lvm:-1} )); then
-        echo "rootPath=\"/dev/mapper/$volumeGroup-${partitions[0]}\""
-        echo "rootName=\"${luksPartitions[3]}\""
-    else
-        echo "rootPath=\"$rootPath\""
-        echo "rootName=\"${luksPartitions[0]}\""
-    fi
+    toggleOutput $fds
 }
 
 main $@
