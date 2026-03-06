@@ -56,6 +56,8 @@ function resolveCryptedPartition () {
     cryptPath="$(findmnt -o SOURCE -n /mnt)"
     local cryptList="$(lsblk -o NAME,TYPE -snl "$cryptPath")"
     cryptName="$(echo "$cryptList" | grep -oP "\w+(?=\s+crypt)")"
+    disk="/dev/$(echo "$cryptList" | grep -oP "\w+(?=\s+disk)")"
+    partition="$(lsblk -o PTTYPE --noheadings --nodeps "$disk")"
     if [[ -n "$cryptName" ]]; then
         luksUUID="$(blkid -s UUID -o value /dev/"$(echo "$cryptList" | grep -oP "\w+(?=\s+part)")")"
     fi
@@ -78,9 +80,16 @@ EOF
 }
 
 function configureGrub () {
-    arch-chroot /mnt <<-EOF
-    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB
-EOF
+    # TODO: Check if part table is gpt or mbr
+    if [[ "$partition" == "gpt" ]]; then
+        arch-chroot /mnt <<-EOF
+        grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB
+        EOF
+    else
+        arch-chroot /mnt <<-EOF
+        grub-install --target=i386-pc "$disk"
+        EOF
+    fi
     if [[ -n "${luksUUID:-}" ]]; then
         arch-chroot /mnt <<-EOF
         sed -i 's/^[[:space:]]*GRUB_CMDLINE_LINUX.*/GRUB_CMDLINE_LINUX="rd.luks.name=$luksUUID=$cryptName root=$cryptPath"/' /etc/default/grub

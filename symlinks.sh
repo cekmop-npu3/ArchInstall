@@ -14,8 +14,6 @@ readonly PARAM_SPECIFIED=6
 readonly scriptName=$(basename "$0")
 
 function usage () {
-    # $1 -> Script name
-
     cat <<EOF
 Usage:
  $scriptName [options] 

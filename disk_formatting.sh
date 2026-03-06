@@ -55,7 +55,7 @@ EOF
 function evalOpts () {
     local opts=$(getopt -l "help,disk:,swap:,root:,partition:,luks:,lvm,interactive" -o "hd:s:r:p:lL:i" -- "$@")
     eval set -- "$opts"
-    noOptions "$@"
+    noOptions "$1" $#
     isNotInteractive $# "-i" "--interactive" $1 || return $?
     opts=$(getopt -l "help,disk:,swap:,root:,partition:,luks:,lvm" -o "hd:s:r:p:lL:" -- "$@")
     eval set -- "$opts"
@@ -151,7 +151,7 @@ function checkDisk () {
     if [[ -z "${disk:-}" || -z "$(echo "$disk" | grep -oP "/dev/\w+")" ]]; then
         echo "Disk name is invalid or not specified" >&2
         return $INVALID_DISK_NAME
-    elif [[ $(( $(( $rootSize + ${swapSize:-0} + 1 )) * 1073741824 )) -ge $(lsblk --bytes --nodeps --noheadings --output SIZE "$disk") ]]; then
+    elif [[ $(( $(( $rootSize + ${swapSize:-0} + $minBootSize )) * 1073741824 )) -ge $(lsblk --bytes --nodeps --noheadings --output SIZE "$disk") ]]; then
         echo "Not enough space on $disk for current configuration" >&2
         return $INSUFFICIENT_DISK_SIZE
     fi
@@ -249,32 +249,36 @@ function diskCleanup () {
 }
 
 function diskPartition () {
-    wipefs -a "$disk"
+    local script=""
+    if (( ${lvm:-1} )) && [[ -n "$swapSize" ]]; then
+        local total=$(( $(lsblk --bytes --nodeps --noheadings --output SIZE "$disk") / 1024 / 1024 / 1024 ))
+        local homeSize=$(( total - rootSize - minBootSize - ${swapSize:-0} ))
+    fi
 
     if [[ "$partition" == "GPT" ]]; then
-        if (( ! ${lvm:-1} )); then
-            # lvm (alias lvm)
-            fdisk "$disk" <<< $'g\nn\n1\n\n+1G\nt\n1\nn\n2\n\n\nt\n2\nlvm\nw\n'
-        elif [[ -n "${swapSize-}" ]]; then
-            # root, home and swap (alias swap)
-            fdisk "$disk" <<< $'g\nn\n1\n\n+1G\nt\n1\nn\n2\n\n+'"${rootSize}"$'G\nn\n4\n\n+'"${swapSize}"$'G\nt\n4\nswap\nn\n3\n\n\nw\n'
-        else
-            # root, home
-            fdisk "$disk" <<< $'g\nn\n1\n\n+1G\nt\n1\nn\n2\n\n+'"${rootSize}"$'G\nn\n3\n\n\nw\n'
-        fi
+        script+="label: gpt\n"
+        script+="size=${minBootSize}G\n"
     else
-        if (( ! ${lvm:-1} )); then
-            # lvm (alias lvm)
-            fdisk "$disk" <<< $'o\nn\np\n1\n\n+1G\na\nn\np\n2\n\n\nt\n2\nlvm\nw\n'
-        elif [[ -n "${swapSize-}" ]]; then
-            # TODO Change swap type
-            # root, home and swap (alias swap)
-            fdisk "$disk" <<< $'o\nn\np\n1\n\n+1G\na\nn\np\n2\n\n+'"${rootSize}"$'G\nn\np\n4\n\n+'"${swapSize}"$'G\nt\n4\nswap\nn\np\n\n\nw\n'
-        else
-            # root, home
-            fdisk "$disk" <<< $'o\nn\np\n1\n\n+1G\na\nn\np\n2\n\n+'"${rootSize}"$'G\nn\np\n3\n\n\nw\n'
-        fi
+        script+="label: dos\n"
+        script+="size=${minBootSize}G, bootable\n"
     fi
+
+    if (( ! ${lvm:-1} )); then
+        # lvm
+        script+="size=+, type=V\n"
+    elif [[ -n "$swapSize" ]]; then
+        # root, home, swap
+        script+="size=${rootSize}G\n"
+        script+="size=${homeSize}G\n"
+        script+="size=+, type=swap\n"
+    else
+        # root, home 
+        script+="size=${rootSize}G\n"
+        script+="size=+\n"
+    fi
+
+    echo -e "$script" | sfdisk --lock --force --no-reread --no-tell-kernel --quiet --wipe always --wipe-partitions always "$disk"
+
     partprobe "$disk"
     udevadm settle
 }
@@ -306,10 +310,10 @@ function lvmSetup () {
     fi
 
     if [[ -n "${swapSize:-}" ]]; then
-        lvcreate -L "${swapSize}G" -n ${partitions[2]} $volumeGroup
+        lvcreate --yes --wipesignatures y -L "${swapSize}G" -n ${partitions[2]} $volumeGroup
     fi
-    lvcreate -L "${rootSize}G" -n ${partitions[0]} $volumeGroup
-    lvcreate -l 100%FREE -n ${partitions[1]} $volumeGroup
+    lvcreate --yes --wipesignatures y -L "${rootSize}G" -n ${partitions[0]} $volumeGroup
+    lvcreate --yes --wipesignatures y -l 100%FREE -n ${partitions[1]} $volumeGroup
 }
 
 function formatPartitions () {
@@ -341,21 +345,19 @@ function setPaths () {
 }
 
 function main () {
-    local fds="$(getAvailableDescriptors)"
-    toggleOutput $fds
-
-    umount -R /mnt || true
-
     local notInteractive=0
     evalOpts "$@" || notInteractive=$?
 
-    toggleOutput $fds
     verify $notInteractive chooseRootSize checkRootSize
     verify $notInteractive chooseSwapSize checkSwapSize
     verify $notInteractive chooseDisk checkDisk
     verify $notInteractive choosePartitionTable checkPartitionTable
     verify $notInteractive chooseMode :
+
+    local fds="$(getAvailableDescriptors)"
     toggleOutput $fds
+
+    umount -R /mnt || true
 
     diskCleanup
     diskPartition
