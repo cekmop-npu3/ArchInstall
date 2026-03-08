@@ -35,7 +35,7 @@ function evalOpts () {
 }
 
 function checkFilesystem () {
-    if ! findmnt -R /mnt &>/dev/null || ! arch-chroot /mnt &>/dev/null; then
+    if ! findmnt -R /mnt &>/dev/null || ! arch-chroot /mnt <<< "" &>/dev/null; then
         echo "Filesystem is not mounted or installed"
         exit $NO_FILESYSTEM
     fi
@@ -49,7 +49,7 @@ function installDependencies () {
     if [[ -n "${luksUUID:-}" ]]; then
         dependencies+=" cryptsetup"
     fi
-    pacstrap -K /mnt "$dependencies"
+    pacstrap -K /mnt $dependencies
 }
 
 function resolveCryptedPartition () {
@@ -80,24 +80,19 @@ EOF
 }
 
 function configureGrub () {
-    # TODO: Check if part table is gpt or mbr
     if [[ "$partition" == "gpt" ]]; then
-        arch-chroot /mnt <<-EOF
-        grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB
-        EOF
+        arch-chroot /mnt <<< 'grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB'
     else
-        arch-chroot /mnt <<-EOF
-        grub-install --target=i386-pc "$disk"
-        EOF
+        arch-chroot /mnt <<< "grub-install --target=i386-pc $disk"
     fi
+    arch-chroot /mnt <<< 'grub-mkconfig -o /boot/grub/grub.cfg'
     if [[ -n "${luksUUID:-}" ]]; then
         arch-chroot /mnt <<-EOF
-        sed -i 's/^[[:space:]]*GRUB_CMDLINE_LINUX.*/GRUB_CMDLINE_LINUX="rd.luks.name=$luksUUID=$cryptName root=$cryptPath"/' /etc/default/grub
+sed -i 's|^GRUB_CMDLINE_LINUX=""$|GRUB_CMDLINE_LINUX="rd.luks.name=$luksUUID=$cryptName root=$cryptPath"|' /etc/default/grub
+sed -i 's/^#GRUB_ENABLE_CRYPTODISK=y$/GRUB_ENABLE_CRYPTODISK=y/' /etc/default/grub
 EOF
     fi
-    arch-chroot /mnt <<-EOF
-    grub-mkconfig -o /boot/grub/grub.cfg
-EOF
+    arch-chroot /mnt <<< 'grub-mkconfig -o /boot/grub/grub.cfg'
 }
 
 function main () {
@@ -111,7 +106,7 @@ function main () {
     genfstab -U /mnt > /mnt/etc/fstab
     resolveCryptedPartition 
     installDependencies
-    generateInitramfs
+    generateInitramfs || true
     configureGrub
 
     toggleOutput $fds
