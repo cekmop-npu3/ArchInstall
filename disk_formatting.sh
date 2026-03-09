@@ -14,7 +14,6 @@ declare -r INSUFFICIENT_ROOT_SIZE=6
 declare -r INVALID_NUMBER=7
 declare -r INVALID_PASSWORD=8
 
-declare -r scriptName=$(basename "$0")
 declare -r defaultPartitionTable="GPT"
 declare -r volumeGroup="vg"
 declare -ar partitions=( "root" "home" "swap" )
@@ -289,13 +288,13 @@ function luksSetup () {
         mapfile -t diskPartitions < <(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+[2-9]$)")
         local -i index
         for (( index=0; index<${#diskPartitions[@]}; ++index )); do
-            echo "$password" | cryptsetup luksFormat -q --key-file=- "${diskPartitions[$index]}"
-            echo "$password" | cryptsetup open -q --key-file=- "${diskPartitions[$index]}" "${luksPartitions[$index]}"
+            printf "%s" "$password" | cryptsetup luksFormat -q --key-file=- "${diskPartitions[$index]}"
+            printf "%s" "$password" | cryptsetup open -q --key-file=- "${diskPartitions[$index]}" "${luksPartitions[$index]}"
         done
     else
         local rootPartition=$(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+2$)")
-        echo "$password" | cryptsetup luksFormat -q --key-file=- "$rootPartition"
-        echo "$password" | cryptsetup open -q --key-file=- $rootPartition "${luksPartitions[3]}"
+        printf "%s" "$password" | cryptsetup luksFormat -q --key-file=- "$rootPartition"
+        printf "%s" "$password" | cryptsetup open -q --key-file=- $rootPartition "${luksPartitions[3]}"
     fi
 }
 

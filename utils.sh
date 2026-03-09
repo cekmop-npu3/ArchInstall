@@ -21,7 +21,6 @@ EOF
 [[ "${BASH_SOURCE[0]}" != "$0" ]] || { usage ; exit $RAN_DIRECTLY; }
 unset -f usage
 unset RAN_DIRECTLY
-unset scriptName
 
 function noOptions () {
     local firstOpt="$1"

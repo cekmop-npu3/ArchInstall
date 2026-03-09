@@ -6,8 +6,6 @@ source ./utils.sh
 
 declare -r NO_FILESYSTEM=1
 
-declare -r scriptName=$(basename "$0")
-
 function usage () {
     cat <<EOF
 Usage:
