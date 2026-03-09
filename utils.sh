@@ -22,6 +22,11 @@ EOF
 unset -f usage
 unset RAN_DIRECTLY
 
+function inISO () {
+    # Returns 0 if the script is running in iso environment 
+    command -v arch-chroot &>/dev/null && [[ -d /run/archiso ]]
+}
+
 function noOptions () {
     local firstOpt="$1"
     local optCount=$2
