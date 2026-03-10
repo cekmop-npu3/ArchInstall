@@ -24,7 +24,7 @@ EOF
 }
 
 function evalOpts () {
-    local opts=$(getopt -l "username:,password:,help,interactive" -o "u:p:hi")
+    local opts=$(getopt -l "username:,password:,help,interactive" -o "u:p:hi" -- "$@")
     eval set -- "$opts"
     noOptions "$1" $#
     isNotInteractive $# "-i" "--interactive" $1 || return $?
@@ -80,23 +80,18 @@ function checkPassword () {
 }
 
 function addUser () {
-    local script="
-    useradd -m $username
-    passwd $username
-    usermod -aG wheel $username
-    echo \"%wheel ALL=(ALL:ALL) ALL\" > /etc/sudoers.d/10-wheel
-    chmod 0440 /etc/sudoers.d/10-wheel
-    "
-    if inISO; then
-        arch-chroot /mnt <<-EOF
-$script
+    arch-chroot /mnt &>/dev/null <<-EOF
+useradd -m $username
+printf "%s:%s" "$username" "$password" | chpasswd
+usermod -aG wheel $username
+echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/10-wheel
+chmod 0440 /etc/sudoers.d/10-wheel
 EOF
-    else
-        exec "$script"
-    fi
 }
 
 function main () {
+    inISO
+
     local notInteractive=0
     evalOpts "$@" || notInteractive=$?
 

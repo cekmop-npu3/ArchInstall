@@ -15,7 +15,7 @@ Options:
  -h, --help                 Show this help
 
 Error codes:
- NO_FILESYSTEM=1            Filesystem is not mounted or installed
+ NO_FILESYSTEM=1            Filesystem is not mounted
  PARAM_SPECIFIED=101        Unknown param is specified
 EOF
 }
@@ -33,8 +33,8 @@ function evalOpts () {
 }
 
 function checkFilesystem () {
-    if ! findmnt -R /mnt &>/dev/null || ! arch-chroot /mnt <<< "" &>/dev/null; then
-        echo "Filesystem is not mounted or installed"
+    if ! findmnt -R /mnt &>/dev/null; then
+        echo "Filesystem is not mounted"
         exit $NO_FILESYSTEM
     fi
 }
@@ -94,9 +94,10 @@ EOF
 }
 
 function main () {
-    evalOpts "$@"
-
+    inISO
     checkFilesystem
+
+    evalOpts "$@"
 
     declare fds="$(getAvailableDescriptors)"
     toggleOutput $fds
@@ -104,7 +105,7 @@ function main () {
     genfstab -U /mnt > /mnt/etc/fstab
     resolveCryptedPartition 
     installDependencies
-    generateInitramfs || true
+    generateInitramfs
     configureGrub
 
     toggleOutput $fds

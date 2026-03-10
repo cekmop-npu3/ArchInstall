@@ -344,6 +344,8 @@ function setPaths () {
 }
 
 function main () {
+    inISO
+
     local notInteractive=0
     evalOpts "$@" || notInteractive=$?
 

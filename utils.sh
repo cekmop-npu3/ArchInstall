@@ -5,6 +5,7 @@ declare RAN_DIRECTLY=1
 declare -r INTERACTIVE_MODE=100
 declare -r PARAM_SPECIFIED=101
 declare -r NO_USAGE_FUNC=102
+declare -r NOT_IN_ISO=103
 
 declare scriptName=$(basename "$0")
 
@@ -23,8 +24,9 @@ unset -f usage
 unset RAN_DIRECTLY
 
 function inISO () {
-    # Returns 0 if the script is running in iso environment 
-    command -v arch-chroot &>/dev/null && [[ -d /run/archiso ]]
+    if ! { command -v arch-chroot &>/dev/null && [[ -d /run/archiso ]]; }; then
+        exit $NOT_IN_ISO
+    fi
 }
 
 function noOptions () {
