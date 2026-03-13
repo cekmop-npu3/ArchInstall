@@ -12,6 +12,7 @@ readonly NO_REQUIRED_OPT=7
 readonly NO_VALID_VARIANT=8
 readonly INVALID_REQUIRED=9
 readonly GETOPT_ERROR=10
+readonly INVALID_CALLBACK=11
 
 # Options:
 #  -s, --short_option [string]
@@ -19,12 +20,13 @@ readonly GETOPT_ERROR=10
 #  -p, --position [int]
 #  -a, --argument ["true"|"optional"]
 #  -r, --required ["true"]
+#  -c, --callback [string] - takes argument as a parameter $1
 # Returns: OptionObject
 # Description: Returns a string of colon separated options (OptionObject) in the following format: 
-#  "long_option:short_option:position:argument:required"
+#  "long_option:short_option:position:argument:required:callback"
 function create_option () {
     local opts
-    opts="$(getopt -o "s::l::p::a::r::" -l "short_option::,long_option::,position::,argument::,required::" -- "$@" 2>/dev/null)" || return $GETOPT_ERROR
+    opts="$(getopt -o "s::l::p::a::r::c::" -l "short_option::,long_option::,position::,argument::,required::,callback::" -- "$@" 2>/dev/null)" || return $GETOPT_ERROR
     eval set -- "$opts"
 
     while [[ $1 != "--" ]]; do
@@ -43,6 +45,10 @@ function create_option () {
             ;;
             (-r|--required)
                 local required="$2"
+            ;;
+            (-c|--callback)
+                local callback="$2"
+            ;;
         esac
         shift 2
     done
@@ -59,9 +65,11 @@ function create_option () {
         return $INVALID_ARGUMENT
     elif [[ -n "${required:=}" && -z "$(echo "$required" | grep -o "^true$")" ]]; then
         return $INVALID_REQUIRED
+    elif [[ -n "${callback:=}" ]] && ! declare -f "$callback" &>/dev/null; then
+        return $INVALID_CALLBACK
     fi
 
-    echo "$long_option:$short_option:$position:$argument:$required"
+    echo "$long_option:$short_option:$position:$argument:$required:$callback"
 }
 
 # Parameters:
@@ -72,8 +80,6 @@ function create_option () {
 #  positional_OptionObjects_space_separated\n
 #  $@\n
 function set_option_variant () {
-    #TODO: Fix positional arguments
-    # "long_option:short_option:position:argument:required"
     local option
 
     local -a positional_options=()
@@ -83,7 +89,7 @@ function set_option_variant () {
     local required
 
     for option in "$@"; do
-        IFS=: read -r _ _ position _ required <<< "$option"
+        IFS=: read -r _ _ position _ required _ <<< "$option"
         [[ -z "$position" ]] || positional_options+=("$option")
         [[ "$required" != "true" ]] || required_options+=("$option")
     done
@@ -111,7 +117,7 @@ function _translate_variant () {
     local argument
 
     for option in "${options[@]}"; do
-        IFS=: read -r long_option short_option _ argument _ <<< "$option"
+        IFS=: read -r long_option short_option _ argument _ _ <<< "$option"
         case $argument in
             (true)
                 [[ -z "$long_option" ]] || long_options+="$long_option:,"
@@ -146,7 +152,7 @@ function _handle_options () {
     local required
 
     for option in $1; do
-        IFS=: read -r long_option short_option position _ required <<< "$option"
+        IFS=: read -r long_option short_option position _ required _ <<< "$option"
 
         [[ "$required" != "true" ]] || [[ -n "$(echo "$2" | grep -oP "(-$short_option|--$long_option)")" ]] || return $NO_REQUIRED_OPT
 
@@ -155,10 +161,10 @@ function _handle_options () {
 }
 
 # Parameters:
-#  $1 -> Script unformatted options count
-#  ${@:1:$1} -> Script unformatted options
+#  $1 -> Script unformatted options count. I.E. $#
+#  ${@:1:$1} -> Script unformatted options. I.E. "$@"
 #  $@ -> VariantObjects
-# Returns: getopt options
+# Returns: "getopt_string\nvariant_options\n"
 # Description: Takes VariantObjects as its parameters. If a VariantObject satisfies script options then _handle_options function checks required options persistense as well as positional options position. If no VariantObject satisfies the script options, the function exits with NO_VALID_VARIANT
 function handle_variants () {
     local -a script_options=("${@:2:$1}")
@@ -189,9 +195,37 @@ function handle_variants () {
         _handle_options "$required_options" "${only_options[*]}" || return $?
         _handle_options "$positional_options" "${only_options[*]}" true || return $?
 
-        echo "$formatted_options"
+        printf "%s\n%s\n" "$formatted_options" "${variant[2]}"
         return 0
     done
     return $NO_VALID_VARIANT
+}
+
+# Parameters:
+#  $1 -> formatted options (getopt string)
+#  $2 -> variant options
+# Description: Takes the output of a handle_variants function and invokes callbacks for variant options that define its callbacks
+function invoke_callbacks () {
+    local formatted_options="$1"
+    local -a variant_options
+    IFS=" " read -r -a variant_options <<< "$2"
+    shift 2
+
+    local variant_option
+    local long_option
+    local short_option
+    local argument
+    local required
+    local callback
+
+    eval set -- "$formatted_options"
+
+    for variant_option in "${variant_options[@]}"; do
+        IFS=: read -r long_option short_option _ argument required callback <<< "$variant_option"
+        if [[ -n "$callback" && -n "$(echo "$1" | grep -oP "(-$short_option|--$long_option)")" ]]; then
+            "$callback" "$argument"
+            shift 1 && { [[ -n "$argument" ]] && shift 1; }
+        fi
+    done
 }
 
