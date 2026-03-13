@@ -1,0 +1,24 @@
+#!/usr/bin/bash
+
+readonly RAN_DIRECTLY=1
+
+declare scriptName=$(basename "$0")
+
+function usage () {
+    cat <<EOF
+Usage:
+ source ./$scriptName
+
+Exit codes:
+ $scriptName returns 1 if it's ran directly. Only intended to be sourced
+EOF
+}
+
+[[ "${BASH_SOURCE[0]}" != "$0" ]] || { usage ; exit $RAN_DIRECTLY; }
+
+[[ "${BASH_SOURCE[1]}" != "$0" ]] || { usage ; exit $RAN_DIRECTLY; }
+
+unset -f usage
+unset RAN_DIRECTLY
+unset scriptName
+

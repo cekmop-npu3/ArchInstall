@@ -1,19 +1,17 @@
 #!/usr/bin/bash
 
-# TODO: Add more descriptive doc strings if neccessary
-# TODO: Handle both output and status code of a handle_variants function
+source ./make_sourced.sh
 
-set -euo pipefail
-
-declare -r INVALID_OPTIONS=1
-declare -r INVALID_SHORT_OPT=2
-declare -r INVALID_LONG_OPT=3
-declare -r INVALID_INTEGER=4
-declare -r INVALID_ARGUMENT=5
-declare -r WRONG_POS_OPT=6
-declare -r NO_REQUIRED_OPT=7
-declare -r NO_VALID_VARIANT=8
-declare -r INVALID_REQUIRED=9
+readonly INVALID_OPTIONS=1
+readonly INVALID_SHORT_OPT=2
+readonly INVALID_LONG_OPT=3
+readonly INVALID_INTEGER=4
+readonly INVALID_ARGUMENT=5
+readonly WRONG_POS_OPT=6
+readonly NO_REQUIRED_OPT=7
+readonly NO_VALID_VARIANT=8
+readonly INVALID_REQUIRED=9
+readonly GETOPT_ERROR=10
 
 # Options:
 #  -s, --short_option [string]
@@ -25,7 +23,8 @@ declare -r INVALID_REQUIRED=9
 # Description: Returns a string of colon separated options (OptionObject) in the following format: 
 #  "long_option:short_option:position:argument:required"
 function create_option () {
-    local opts="$(getopt -o "s::l::p::a::r::" -l "short_option::,long_option::,position::,argument::,required::" -- "$@")"
+    local opts
+    opts="$(getopt -o "s::l::p::a::r::" -l "short_option::,long_option::,position::,argument::,required::" -- "$@" 2>/dev/null)" || return $GETOPT_ERROR
     eval set -- "$opts"
 
     while [[ $1 != "--" ]]; do
@@ -93,10 +92,10 @@ function set_option_variant () {
 }
 
 # Parameters:
-#  $1 -> Variant
-# Returns: getopt -l and -o arguments
-function translate_variant () {
-    # TODO: Add more descriptive doc string
+#  $1 -> VariantObject
+# Returns: getopt -l and -o arguments in the following format:
+#  "long_options\nshort_options\n"
+function _translate_variant () {
     local long_options=""
     local short_options=""
 
@@ -136,7 +135,7 @@ function translate_variant () {
 #  $1 -> Either required or positional options from a VariantObject
 #  $2 -> Options without possible arguments (only options) "[short|long]_option\n...". I.E. "-h\n--verbose\n"
 #  $3 -> [any] - A flag which indicates that the function should check for either required options (if nothing passed) or positional ones
-function handle_options () {
+function _handle_options () {
     local -a only_options
     mapfile -t only_options <<< "$2"
 
@@ -160,9 +159,7 @@ function handle_options () {
 #  ${@:1:$1} -> Script unformatted options
 #  $@ -> VariantObjects
 # Returns: getopt options
-# Description: Takes VariantObjects as its parameters. If a VariantObject satisfies script options then handle_options function checks required options persistense as well as positional options position. If no VariantObject satisfies the script options, the function exits with NO_VALID_VARIANT
-# Error codes:
-#  
+# Description: Takes VariantObjects as its parameters. If a VariantObject satisfies script options then _handle_options function checks required options persistense as well as positional options position. If no VariantObject satisfies the script options, the function exits with NO_VALID_VARIANT
 function handle_variants () {
     local -a script_options=("${@:2:$1}")
     shift $(( $1 + 1 ))
@@ -178,7 +175,7 @@ function handle_variants () {
     for variant in "$@"; do
         # "long_options_getopt_argument short_options_getopt_argument"
         # I.E. "help,verbose::, hv::"
-        mapfile -t getopt_args <<< "$(translate_variant "$variant")"
+        mapfile -t getopt_args <<< "$(_translate_variant "$variant")"
         formatted_options="$(getopt -l "${getopt_args[0]}" -o "${getopt_args[1]}" -- "${script_options[@]}" 2>/dev/null)" || continue
 
         mapfile -t variant <<< "$variant"
@@ -189,30 +186,12 @@ function handle_variants () {
         # I.E. -h\n--verbose\n
         only_options="$(echo "$formatted_options" | grep -oP '(^|\s)\K(-[a-zA-Z0-9]|--[a-zA-Z0-9][a-zA-Z0-9-]*(?==|\s|$))')"
 
-        handle_options "$required_options" "${only_options[*]}" || return $?
-        handle_options "$positional_options" "${only_options[*]}" true || return $?
+        _handle_options "$required_options" "${only_options[*]}" || return $?
+        _handle_options "$positional_options" "${only_options[*]}" true || return $?
 
         echo "$formatted_options"
         return 0
     done
     return $NO_VALID_VARIANT
 }
-
-function main () {
-    opt1=$(create_option --long_option="help" --short_option="h" --position=0 --required="true")
-    opt2=$(create_option --short_option="v" --long_option="verbose" --argument="optional")
-    opt3=$(create_option --short_option="o" --long_option="output" --argument="true")
-
-    var1=$(set_option_variant "$opt1" "$opt2")
-    var2=$(set_option_variant "$opt1" "$opt3")
-
-    handle_variants $# "$@" "$var1" "$var2" || echo "exit status: $?" && exit 0
-
-    echo "Variants were handled successfully"
-}
-
-main "$@"
-
-
-
 

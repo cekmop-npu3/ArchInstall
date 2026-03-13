@@ -1,27 +1,13 @@
 #!/usr/bin/bash
 
-declare RAN_DIRECTLY=1
+source ./make_sourced.sh
 
 declare -r INTERACTIVE_MODE=100
 declare -r PARAM_SPECIFIED=101
 declare -r NO_USAGE_FUNC=102
 declare -r NOT_IN_ISO=103
 
-declare scriptName=$(basename "$0")
-
-function usage () {
-    cat <<EOF
-Usage:
- source ./$scriptName.sh
-
-Exit codes:
- $scriptName returns 1 if it's ran directly. Only intended to be sourced
-EOF
-}
-
-[[ "${BASH_SOURCE[0]}" != "$0" ]] || { usage ; exit $RAN_DIRECTLY; }
-unset -f usage
-unset RAN_DIRECTLY
+declare -r scriptName=$(basename "$0")
 
 function inISO () {
     if ! { command -v arch-chroot &>/dev/null && [[ -d /run/archiso ]]; }; then
