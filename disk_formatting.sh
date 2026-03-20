@@ -1,21 +1,19 @@
 #!/usr/bin/bash
 
-# TODO: Delete all echo messages with errors; provide error codes section in help
-
 set -euo pipefail
 
-source ./utils.sh
+source ./utils/parse_options.sh
 
-declare -r INSUFFICIENT_DISK_SIZE=1
-declare -r INVALID_PARTITION=2
-declare -r INVALID_DISK_NAME=3
-declare -r INVALID_UEFI=4
-declare -r INSUFFICIENT_ROOT_SIZE=6
-declare -r INVALID_NUMBER=7
-declare -r INVALID_PASSWORD=8
+readonly INSUFFICIENT_DISK_SIZE=1
+readonly INVALID_PARTITION=2
+readonly INVALID_DISK_NAME=3
+readonly INVALID_UEFI=4
+readonly INSUFFICIENT_ROOT_SIZE=6
+readonly INVALID_NUMBER=7
+readonly INVALID_PASSWORD=8
 
-declare -r defaultPartitionTable="GPT"
-declare -r volumeGroup="vg"
+readonly defaultPartitionTable="GPT"
+readonly volumeGroup="vg"
 declare -ar partitions=( "root" "home" "swap" )
 declare -ar luksPartitions=( "cryptroot" "crypthome" "cryptswap" "cryptlvm" )
 
@@ -23,6 +21,8 @@ declare -ar luksPartitions=( "cryptroot" "crypthome" "cryptswap" "cryptlvm" )
 declare -ir minDiskSize=128 
 declare -ir minRootSize=64
 declare -ir minBootSize=1
+
+declare -i notInteractive=0
 
 function usage () {
     cat <<EOF
@@ -49,51 +49,40 @@ Exit codes:
  INVALID_NUMBER=7                             Nan was passed as a parameter
  INVALID_PASSWORD=8                           Password is empty or passwords don't match
 EOF
+    exit 0
 }
 
+function setDisk () { disk="$1"; }
+function setSwap () { swapSize="$1"; }
+function setRoot () { rootSize="$1"; }
+function setPartition () { partition="$1"; }
+function setLVM () { lvm=0; }
+function setLuks () { luks=0; password="$1"; }
+function onInteractive () { notInteractive=1; }
+
 function evalOpts () {
-    local opts=$(getopt -l "help,disk:,swap:,root:,partition:,luks:,lvm,interactive" -o "hd:s:r:p:lL:i" -- "$@")
-    eval set -- "$opts"
-    noOptions "$1" $#
-    isNotInteractive $# "-i" "--interactive" $1 || return $?
-    opts=$(getopt -l "help,disk:,swap:,root:,partition:,luks:,lvm" -o "hd:s:r:p:lL:" -- "$@")
-    eval set -- "$opts"
+    declare -a script_options=("$@")
 
-    while [[ $1 != "--" ]]; do
-        case $1 in
-            (-h|--help)
-                usage
-                exit 0
-            ;;
-            (-L|--luks)
-                luks=0
-                password="$2"
-                shift 2
-            ;;
-            (-l|--lvm)
-                lvm=0
-                shift 1
-            ;;
-            (-d|--disk)
-	            disk="$2"
-                shift 2
-            ;;
-            (-s|--swap)
-                swapSize="$2"
-                shift 2
-            ;;
-            (-r|--root)
-                rootSize="$2"
-                shift 2
-            ;;
-            (-p|--partition)
-                partition="$2"
-                shift 2
-            ;;
-        esac
-    done
+    declare -A opt1 opt2 opt3 opt4 opt5 opt6 opt7 opt8
+    create_option --short-option="d" --long-option="disk" --argument="true" --required --callback=setDisk opt1
+    create_option --short-option="s" --long-option="swap" --argument="true" --callback=setSwap opt2
+    create_option --short-option="r" --long-option="root" --argument="true" --callback=setRoot opt3
+    create_option --short-option="p" --long-option="partition" --argument="true" --callback=setPartition opt4
 
-    handleParams "$@"
+    create_option --short-option="l" --long-option="lvm" --callback=setLVM opt5
+    create_option --short-option="L" --long-option="luks" --argument="true" --callback=setLuks opt6
+    create_option --short-option="h" --long-option="help" --early --callback=usage opt7
+    create_option --short-option="i" --long-option="interactive" --early --callback=onInteractive
+
+    declare -A usage1 usage2
+    set_usage usage1 opt1 opt2 opt3 opt4 opt5 opt6 opt7
+    set_usage usage2 opt7 opt8
+
+    declare -A response
+    handle_usages response script_options usage1 usage2
+    # TODO: Handle some status codes and echo appropriate messages for them
+
+    invoke_callbacks response
 }
 
 function checkPassword () {
@@ -346,8 +335,7 @@ function setPaths () {
 function main () {
     inISO
 
-    local notInteractive=0
-    evalOpts "$@" || notInteractive=$?
+    evalOpts "$@"
 
     verify $notInteractive chooseRootSize checkRootSize
     verify $notInteractive chooseSwapSize checkSwapSize
@@ -385,5 +373,5 @@ function main () {
     toggleOutput $fds
 }
 
-main $@
+main "$@"
 

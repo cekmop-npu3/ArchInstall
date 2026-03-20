@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-readonly RAN_DIRECTLY=1
+declare RAN_DIRECTLY=1
 
 declare scriptName=$(basename "$0")
 
