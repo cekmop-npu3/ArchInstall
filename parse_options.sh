@@ -20,7 +20,7 @@ readonly INVALID_VAR_NAME=14
 # Parameters:
 #  $1 -> array(declare -A|-a)
 #  $2 -> is_associative [bool] - Default false
-function is_array () {
+function _is_array () {
     local array_name="$1"
     local is_associative="${2:-false}"
     if [[ $is_associative != true && $is_associative != false ]]; then
@@ -81,19 +81,16 @@ function create_option () {
     elif [[ -n "${early:=}" ]] && { [[ -z "$callback" ]] || [[ -n "${required:-}" ]] || [[ -n "${position}" ]]; }; then
         return $INVALID_COMBINATION
     fi
-
     shift 1
 
-    is_array "$1" true || return $?
-
+    _is_array "${1:-}" true || return $?
     local -n array_ref="$1"
-
     array_ref=(
         ["short_option"]="$short_option"
         ["long_option"]="$long_option"
         ["argument"]="$argument"
         ["position"]="$position"
-        ["required"]="$required"
+        ["required"]="${required:-}"
         ["callback"]="$callback"
         ["early"]="$early"
     )
@@ -112,15 +109,13 @@ function create_option () {
             [[ -z "$long_option" ]] || array_ref["getopt_l"]="$long_option,"
         ;;
     esac
-
 }
 
 # Parameters:
 #  $1 -> usage_array(declare -A)
 #  Each ${@:1} -> option_array(declare -A) from create_option
 function set_usage () {
-    # TODO: Debug: option_arrays[@] may be a single string
-    is_array "$1" true || return $?
+    _is_array "$1" true || return $?
     local -n usage_array="$1"
     shift 1
 
@@ -132,7 +127,7 @@ function set_usage () {
 
 
     for option_array_name in "${option_arrays[@]}"; do
-        is_array "${option_array_name}" true || return $?
+        _is_array "${option_array_name}" true || return $?
         local -n option_array="$option_array_name"
 
         getopt_l+="${option_array["getopt_l"]}"
@@ -200,8 +195,8 @@ function _handle_options () {
 #  $2 -> script_options_array(declare -a)
 #  Each ${@:2} -> usage_array(declare -A) from set_usage
 function handle_usages () {
-    is_array "$1" true || return $?
-    is_array "$2" || return $?
+    _is_array "$1" true || return $?
+    _is_array "$2" || return $?
     local -n response_array="$1"
     response_array["early_callback_status"]=0
     local -n script_options_array="$2"
@@ -213,7 +208,7 @@ function handle_usages () {
     local formatted_options
     local -a only_options
     for usage_array_name in "${usage_arrays[@]}"; do
-        is_array ${usage_array_name} true || return $?
+        _is_array ${usage_array_name} true || return $?
         local -n usage_array="$usage_array_name"
         formatted_options="$(getopt -l "${usage_array["getopt_l"]}" -o "${usage_array["getopt_o"]}" -- "${script_options_array[@]}" 2>/dev/null)" || continue
         _filter_only_options only_options "$formatted_options" "$usage_array_name"
@@ -234,8 +229,7 @@ function handle_usages () {
 # Parameters:
 #  $1 -> response_array(declare -A) from handle_usages
 function invoke_callbacks () {
-    # TODO: Fix the bug: early callbacks are being invoked even if only callbacks are handled
-    is_array "$1"
+    _is_array "$1" true
     local -n response_array="$1"
 
     local -i early_callback_status=${response_array['early_callback_status']}

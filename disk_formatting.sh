@@ -2,7 +2,8 @@
 
 set -euo pipefail
 
-source ./utils/parse_options.sh
+source ./parse_options.sh
+source ./utils.sh
 
 readonly INSUFFICIENT_DISK_SIZE=1
 readonly INVALID_PARTITION=2
@@ -72,15 +73,14 @@ function evalOpts () {
     create_option --short-option="l" --long-option="lvm" --callback=setLVM opt5
     create_option --short-option="L" --long-option="luks" --argument="true" --callback=setLuks opt6
     create_option --short-option="h" --long-option="help" --early --callback=usage opt7
-    create_option --short-option="i" --long-option="interactive" --early --callback=onInteractive
+    create_option --short-option="i" --long-option="interactive" --early --callback=onInteractive opt8
 
     declare -A usage1 usage2
     set_usage usage1 opt1 opt2 opt3 opt4 opt5 opt6 opt7
     set_usage usage2 opt7 opt8
 
     declare -A response
-    handle_usages response script_options usage1 usage2
-    # TODO: Handle some status codes and echo appropriate messages for them
+    handle_usages response script_options usage1 usage2 || return $?
 
     invoke_callbacks response
 }
