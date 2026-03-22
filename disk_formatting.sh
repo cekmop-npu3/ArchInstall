@@ -13,29 +13,28 @@ readonly INSUFFICIENT_ROOT_SIZE=6
 readonly INVALID_NUMBER=7
 readonly INVALID_PASSWORD=8
 
-readonly defaultPartitionTable="GPT"
-readonly volumeGroup="vg"
+readonly default_partition_table="GPT"
+readonly volume_group="vg"
 declare -ar partitions=( "root" "home" "swap" )
-declare -ar luksPartitions=( "cryptroot" "crypthome" "cryptswap" "cryptlvm" )
+declare -ar luks_partitions=( "cryptroot" "crypthome" "cryptswap" "cryptlvm" )
 
 # Size in GiB
-declare -ir minDiskSize=128 
-declare -ir minRootSize=64
-declare -ir minBootSize=1
+declare -ir min_root_size=64
+declare -ir min_boot_size=1
 
-declare -i notInteractive=0
+declare -i is_interactive=1
 
 function usage () {
     cat <<EOF
 Usage:
- $scriptName [options]
- $scriptName [-i|--interactive]
+ $script_name [options]
+ $script_name [-i|--interactive]
 
 Options:
  -d, --disk <disk>                            Disk to use "/dev/disk_name"
  -s, --swap <swap_size>                       Swap size in GiB in a format <Integer>. Disabled by default
- -r, --root <root_size>                       Root size in GiB in a format <Integer>. Default/Minimum $minRootSize GiB
- -p, --partition <part_table>                 Either <GPT> or <MBR>. Default $defaultPartitionTable
+ -r, --root <root_size>                       Root size in GiB in a format <Integer>. Default/Minimum $min_root_size GiB
+ -p, --partition <part_table>                 Either <GPT> or <MBR>. Default $default_partition_table
  -l, --lvm                                    Option enables LVM. Disabled by default
  -L, --luks <pass>                            Enables LUKS encryption. Disabled by default. If the password given is "-", reads from PASSWORD env variable
 
@@ -46,34 +45,34 @@ Exit codes:
  INVALID_PARTITION=2                          Must be either "GPT" or "MBR"
  INVALID_DISK_NAME=3                          Disk name is invalid or not specified
  INVALID_UEFI=4                               UEFI is not detected
- INSUFFICIENT_ROOT_SIZE=6                     Root size must be at least $minRootSize GiB
+ INSUFFICIENT_ROOT_SIZE=6                     Root size must be at least $min_root_size GiB
  INVALID_NUMBER=7                             Nan was passed as a parameter
  INVALID_PASSWORD=8                           Password is empty or passwords don't match
 EOF
     exit 0
 }
 
-function setDisk () { disk="$1"; }
-function setSwap () { swapSize="$1"; }
-function setRoot () { rootSize="$1"; }
-function setPartition () { partition="$1"; }
-function setLVM () { lvm=0; }
-function setLuks () { luks=0; password="$1"; }
-function onInteractive () { notInteractive=1; }
+function set_disk () { disk="${1:-}"; }
+function set_swap () { swap_size="${1:-}"; }
+function set_root () { root_size="${1:-}"; }
+function set_partition () { partition="${1:-}"; }
+function set_lvm () { lvm=0; }
+function set_luks () { luks=0; password="${1:-}"; }
+function on_interactive () { is_interactive=0; }
 
-function evalOpts () {
+function eval_script_options () {
     declare -a script_options=("$@")
 
     declare -A opt1 opt2 opt3 opt4 opt5 opt6 opt7 opt8
-    create_option --short-option="d" --long-option="disk" --argument="true" --required --callback=setDisk opt1
-    create_option --short-option="s" --long-option="swap" --argument="true" --callback=setSwap opt2
-    create_option --short-option="r" --long-option="root" --argument="true" --callback=setRoot opt3
-    create_option --short-option="p" --long-option="partition" --argument="true" --callback=setPartition opt4
+    create_option --short-option="d" --long-option="disk" --argument="true" --required --callback=set_disk opt1
+    create_option --short-option="s" --long-option="swap" --argument="true" --callback=set_swap opt2
+    create_option --short-option="r" --long-option="root" --argument="true" --callback=set_root opt3
+    create_option --short-option="p" --long-option="partition" --argument="true" --callback=set_partition opt4
 
-    create_option --short-option="l" --long-option="lvm" --callback=setLVM opt5
-    create_option --short-option="L" --long-option="luks" --argument="true" --callback=setLuks opt6
+    create_option --short-option="l" --long-option="lvm" --callback=set_lvm opt5
+    create_option --short-option="L" --long-option="luks" --argument="true" --callback=set_luks opt6
     create_option --short-option="h" --long-option="help" --early --callback=usage opt7
-    create_option --short-option="i" --long-option="interactive" --early --callback=onInteractive opt8
+    create_option --short-option="i" --long-option="interactive" --early --callback=on_interactive opt8
 
     declare -A usage1 usage2
     set_usage usage1 opt1 opt2 opt3 opt4 opt5 opt6 opt7
@@ -85,46 +84,46 @@ function evalOpts () {
     invoke_callbacks response
 }
 
-function checkPassword () {
+function check_password () {
     if [[ -n "$(echo "${password:-}" | grep -oP "^-$")" ]]; then 
         password="${PASSWORD-}"
     fi
     if [[ -z "${password:-}" ]]; then
         echo "Password cannot be empty"
         return $INVALID_PASSWORD
-    elif [[ "${verifyPass+set}" && "$password" != "${verifyPass-}" ]]; then
+    elif [[ "${verify_pass+set}" && "$password" != "${verify_pass-}" ]]; then
         echo "Passwords don't match"
         return $INVALID_PASSWORD
     fi
 }
 
-function checkRootSize () {
-    if [[ -z "${rootSize:-}" ]]; then
-        rootSize=$minRootSize
+function check_root_size () {
+    if [[ -z "${root_size:-}" ]]; then
+        root_size=$min_root_size
         return 0
-    elif [[ -z "$(echo "$rootSize" | grep -oP '^\d+$')" ]]; then
+    elif [[ -z "$(echo "$root_size" | grep -oP '^\d+$')" ]]; then
         echo "Root size must be of Integer type" >&2
         return $INVALID_NUMBER
-    elif [[ "$rootSize" -lt "$minRootSize" ]]; then
-        echo "Root size must be at least $minRootSize GiB" >&2
+    elif [[ "$root_size" -lt "$min_root_size" ]]; then
+        echo "Root size must be at least $min_root_size GiB" >&2
         return $INSUFFICIENT_ROOT_SIZE
     fi
 }
 
-function checkSwapSize () {
-    if [[ -z "${swapSize:-}" ]]; then
+function check_swap_size () {
+    if [[ -z "${swap_size:-}" ]]; then
         return 0
-    elif [[ -z "$(echo "$swapSize" | grep -oP '^\d+$')" ]]; then
+    elif [[ -z "$(echo "$swap_size" | grep -oP '^\d+$')" ]]; then
         echo "Swap size must be of Integer type" >&2
         return $INVALID_NUMBER
-    elif [[ -n "$(echo "$swapSize" | grep -oP '^0+')" ]]; then
-        unset swapSize
+    elif [[ -n "$(echo "$swap_size" | grep -oP '^0+')" ]]; then
+        unset swap_size
     fi
 }
 
-function checkPartitionTable () {
+function check_partition_table () {
     if [[ -z "${partition:-}" ]]; then
-        partition=$defaultPartitionTable
+        partition=$default_partition_table
         return 0
     elif [[ "$partition" != "GPT" && "$partition" != "MBR" ]]; then
         echo "Partition style must be either \"GPT\" or \"MBR\", not $partition" >&2
@@ -135,46 +134,46 @@ function checkPartitionTable () {
     fi
 }
 
-function checkDisk () {
+function check_disk () {
     if [[ -z "${disk:-}" || -z "$(echo "$disk" | grep -oP "/dev/\w+")" ]]; then
         echo "Disk name is invalid or not specified" >&2
         return $INVALID_DISK_NAME
-    elif [[ $(( $(( $rootSize + ${swapSize:-0} + $minBootSize )) * 1073741824 )) -ge $(lsblk --bytes --nodeps --noheadings --output SIZE "$disk") ]]; then
+    elif [[ $(( $(( $root_size + ${swap_size:-0} + $min_boot_size )) * 1073741824 )) -ge $(lsblk --bytes --nodeps --noheadings --output SIZE "$disk") ]]; then
         echo "Not enough space on $disk for current configuration" >&2
         return $INSUFFICIENT_DISK_SIZE
     fi
 }
 
-function inputPassword () {
+function input_password () {
     read -rsp "Enter your luks password: " password
     echo
-    read -rsp "Retype your luks password: " verifyPass
+    read -rsp "Retype your luks password: " verify_pass
     echo
 }
 
-function chooseRootSize () {
-    read -rp "Enter root size (Default/Minimum $minRootSize GiB): " rootSize
+function choose_root_size () {
+    read -rp "Enter root size (Default/Minimum $min_root_size GiB): " root_size
 }
 
-function chooseDisk () {
+function choose_disk () {
     local disks=( $(lsblk --nodeps --noheadings --output NAME) "EXIT" )
-    local diskName
+    local disk_name
 
     echo "Enter your disk name or EXIT to exit the script: "
     select diskName in ${disks[@]}; do
-	    if [[ "$diskName" == "EXIT" ]]; then
+	    if [[ "$disk_name" == "EXIT" ]]; then
 	        exit 0
         fi
-        disk="/dev/$diskName"
+        disk="/dev/$disk_name"
         break
     done
 }
 
-function chooseSwapSize () {
-    read -rp "Enter swapSize (Default: 0): " swapSize
+function choose_swap_size () {
+    read -rp "Enter swap_size (Default: 0): " swap_size
 }
 
-function chooseMode () {
+function choose_mode () {
     local modes=( "LVM+LUKS" "LVM" "LUKS" "NONE" "EXIT" )
     local mode=
 
@@ -199,12 +198,12 @@ function chooseMode () {
     done
 }
 
-function choosePartitionTable () {
-    local partitionsTables=( "GPT" "MBR" "EXIT" )
+function choose_partition_table () {
+    local partition_tables=( "GPT" "MBR" "EXIT" )
     local part=
 
     echo "Enter your partition style, or EXIT to exit the script: "
-    select part in "${partitionsTables[@]}"; do
+    select part in "${partition_tables[@]}"; do
         if [[ "$part" == "EXIT" ]]; then
             exit 0
         fi
@@ -215,53 +214,53 @@ function choosePartitionTable () {
     done
 }
 
-function diskCleanup () {
+function disk_cleanup () {
     swapoff -a
 
     # Remove existing mapper names
-    local mapperNames
+    local mapper_names
     local name
-    mapfile -t mapperNames < <(lsblk -ln -o PATH,PARTN $disk | grep -oP "/dev/mapper/\K\S+")
+    mapfile -t mapper_names < <(lsblk -ln -o PATH,PARTN $disk | grep -oP "/dev/mapper/\K\S+")
     local i=
-    for (( i="${#mapperNames[@]}" - 1; i>=0; i-- )); do 
-        cryptsetup close "${mapperNames[i]}" 
+    for (( i="${#mapper_names[@]}" - 1; i>=0; i-- )); do 
+        cryptsetup close "${mapper_names[i]}" 
     done
 
     # Deactivate existing volume groups on partitions of current disk
-    local volumeGroups=
+    local volume_groups=
     local vg=
-    mapfile -t volumeGroups < <(pvs --noheadings -o vg_name,pv_name | grep -oP "\S+(?=\s+$disk\w+\s*$)")
-    for vg in "${volumeGroups[@]}"; do
+    mapfile -t volume_groups < <(pvs --noheadings -o vg_name,pv_name | grep -oP "\S+(?=\s+$disk\w+\s*$)")
+    for vg in "${volume_groups[@]}"; do
         vgchange -a n "$vg"
     done
 }
 
-function diskPartition () {
+function disk_partition () {
     local script=""
-    if (( ${lvm:-1} )) && [[ -n "$swapSize" ]]; then
+    if (( ${lvm:-1} )) && [[ -n "$swap_size" ]]; then
         local total=$(( $(lsblk --bytes --nodeps --noheadings --output SIZE "$disk") / 1024 / 1024 / 1024 ))
-        local homeSize=$(( total - rootSize - minBootSize - ${swapSize:-0} ))
+        local home_size=$(( total - root_size - min_boot_size - ${swap_size:-0} ))
     fi
 
     if [[ "$partition" == "GPT" ]]; then
         script+="label: gpt\n"
-        script+="size=${minBootSize}G\n"
+        script+="size=${min_boot_size}G\n"
     else
         script+="label: dos\n"
-        script+="size=${minBootSize}G, bootable\n"
+        script+="size=${min_boot_size}G, bootable\n"
     fi
 
     if (( ! ${lvm:-1} )); then
         # lvm
         script+="size=+, type=V\n"
-    elif [[ -n "$swapSize" ]]; then
+    elif [[ -n "$swap_size" ]]; then
         # root, home, swap
-        script+="size=${rootSize}G\n"
-        script+="size=${homeSize}G\n"
+        script+="size=${root_size}G\n"
+        script+="size=${home_size}G\n"
         script+="size=+, type=swap\n"
     else
         # root, home 
-        script+="size=${rootSize}G\n"
+        script+="size=${root_size}G\n"
         script+="size=+\n"
     fi
 
@@ -271,106 +270,107 @@ function diskPartition () {
     udevadm settle
 }
 
-function luksSetup () {
+function luks_setup () {
     if (( ${lvm:-1} )); then
-        local -a diskPartitions
-        mapfile -t diskPartitions < <(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+[2-9]$)")
+        local -a disk_partitions
+        mapfile -t disk_partitions < <(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+[2-9]$)")
         local -i index
-        for (( index=0; index<${#diskPartitions[@]}; ++index )); do
-            printf "%s" "$password" | cryptsetup luksFormat -q --key-file=- "${diskPartitions[$index]}"
-            printf "%s" "$password" | cryptsetup open -q --key-file=- "${diskPartitions[$index]}" "${luksPartitions[$index]}"
+        for (( index=0; index<${#disk_partitions[@]}; ++index )); do
+            printf "%s" "$password" | cryptsetup luksFormat -q --key-file=- "${disk_partitions[$index]}"
+            printf "%s" "$password" | cryptsetup open -q --key-file=- "${disk_partitions[$index]}" "${luks_partitions[$index]}"
         done
     else
-        local rootPartition=$(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+2$)")
-        printf "%s" "$password" | cryptsetup luksFormat -q --key-file=- "$rootPartition"
-        printf "%s" "$password" | cryptsetup open -q --key-file=- $rootPartition "${luksPartitions[3]}"
+        local root_partition=$(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+2$)")
+        printf "%s" "$password" | cryptsetup luksFormat -q --key-file=- "$root_partition"
+        printf "%s" "$password" | cryptsetup open -q --key-file=- $root_partition "${luks_partitions[3]}"
     fi
 }
 
-function lvmSetup () {
+function lvm_setup () {
     if (( ! ${luks:-1} )); then
-        pvcreate -ff "/dev/mapper/${luksPartitions[3]}"
-        vgcreate $volumeGroup -f "/dev/mapper/${luksPartitions[3]}"
+        pvcreate -ff "/dev/mapper/${luks_partitions[3]}"
+        vgcreate $volume_group -f "/dev/mapper/${luks_partitions[3]}"
     else
-        local rootPartition=$(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+2$)")
-        pvcreate -ff "$rootPartition"
-        vgcreate -f "$volumeGroup" "$rootPartition"
+        local root_partition=$(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+2$)")
+        pvcreate -ff "$root_partition"
+        vgcreate -f "$volume_group" "$root_partition"
     fi
 
-    if [[ -n "${swapSize:-}" ]]; then
-        lvcreate --yes --wipesignatures y -L "${swapSize}G" -n ${partitions[2]} $volumeGroup
+    if [[ -n "${swap_size:-}" ]]; then
+        lvcreate --yes --wipesignatures y -L "${swap_size}G" -n ${partitions[2]} $volume_group
     fi
-    lvcreate --yes --wipesignatures y -L "${rootSize}G" -n ${partitions[0]} $volumeGroup
-    lvcreate --yes --wipesignatures y -l 100%FREE -n ${partitions[1]} $volumeGroup
+    lvcreate --yes --wipesignatures y -L "${root_size}G" -n ${partitions[0]} $volume_group
+    lvcreate --yes --wipesignatures y -l 100%FREE -n ${partitions[1]} $volume_group
 }
 
-function formatPartitions () {
-    mkfs.ext4 -FF "$rootPath"
-    mkfs.ext4 -FF "$homePath"
-    mount "$rootPath" /mnt
-    mount --mkdir "$homePath" /mnt/home
-    if [[ -n "${swapPath:-}" ]]; then
-        mkswap "$swapPath"
-        swapon "$swapPath"
+function format_partitions () {
+    mkfs.ext4 -FF "$root_path"
+    mkfs.ext4 -FF "$home_path"
+    mount "$root_path" /mnt
+    mount --mkdir "$home_path" /mnt/home
+    if [[ -n "${swap_path:-}" ]]; then
+        mkswap "$swap_path"
+        swapon "$swap_path"
     fi
     if [[ "$partition" == "GPT" ]]; then
-        mkfs.fat -F32 "$bootPath"
+        mkfs.fat -F32 "$boot_path"
     else
-        mkfs.ext4 -FF "$bootPath"
+        mkfs.ext4 -FF "$boot_path"
     fi
-    mount --mkdir $bootPath /mnt/boot
+    mount --mkdir $boot_path /mnt/boot
 }
 
-function setPaths () {
-    bootPath=$(lsblk -ln -o PATH,PARTN $disk | grep -Po "$disk\w+(?=\s+1$)")
-    local arrayOfPaths="$1"
-    mapfile -t arrayOfPaths <<< "$arrayOfPaths"
-    rootPath="${arrayOfPaths[0]}"
-    homePath="${arrayOfPaths[1]}"
-    if [[ -n "${swapSize:-}" ]]; then
-        swapPath="${arrayOfPaths[2]}"
+function set_paths () {
+    boot_path=$(lsblk -ln -o PATH,PARTN $disk | grep -Po "$disk\w+(?=\s+1$)")
+    local array_of_paths="$1"
+    mapfile -t array_of_paths <<< "$array_of_paths"
+    root_path="${array_of_paths[0]}"
+    home_path="${array_of_paths[1]}"
+    if [[ -n "${swap_size:-}" ]]; then
+        swap_path="${array_of_paths[2]}"
     fi
 }
 
 function main () {
-    inISO
+    is_running_in_iso || return $?
 
-    evalOpts "$@"
+    eval_script_options "$@" || return $?
 
-    verify $notInteractive chooseRootSize checkRootSize
-    verify $notInteractive chooseSwapSize checkSwapSize
-    verify $notInteractive chooseDisk checkDisk
-    verify $notInteractive choosePartitionTable checkPartitionTable
-    verify $notInteractive chooseMode :
+    verify $is_interactive choose_root_size check_root_size || return $?
+    verify $is_interactive choose_swap_size check_swap_size || return $?
+    verify $is_interactive choose_disk check_disk || return $?
+    verify $is_interactive choose_partition_table check_partition_table || return $?
+    verify $is_interactive choose_mode : || return $?
 
-    local fds="$(getAvailableDescriptors)"
-    toggleOutput $fds
+    declare -A descriptor_array
+    get_available_descriptors descriptor_array
+    toggle_output descriptor_array
 
     umount -R /mnt || true
 
-    diskCleanup
-    diskPartition
-    diskCleanup
+    disk_cleanup
+    disk_partition
+    disk_cleanup
 
     if (( ! ${luks:-1} )); then
-        toggleOutput $fds
-        verify $notInteractive inputPassword checkPassword
-        toggleOutput $fds
-        luksSetup 
+        toggle_output descriptor_array
+        verify $is_interactive input_password check_password || return $?
+        toggle_output descriptor_array
+        luks_setup 
         if (( ${lvm:-1} )); then
-            setPaths "$(printf "/dev/mapper/%s\n" "${luksPartitions[@]}")"
+            set_paths "$(printf "/dev/mapper/%s\n" "${luks_partitions[@]}")"
         fi
     fi
     if (( ! ${lvm:-1} )); then 
-        lvmSetup 
-        setPaths "$(printf "/dev/$volumeGroup/%s\n" "${partitions[@]}")"
+        lvm_setup 
+        set_paths "$(printf "/dev/$volume_group/%s\n" "${partitions[@]}")"
     elif (( ${luks:-1} )); then
-        setPaths "$(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+[2-9]$)")" 
+        set_paths "$(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+[2-9]$)")" 
     fi
 
-    formatPartitions $bootPath $rootPath $homePath "${swapPath-}"
+    format_partitions $boot_path $root_path $home_path "${swap_path-}"
 
-    toggleOutput $fds
+    toggle_output descriptor_array
 }
 
 main "$@"

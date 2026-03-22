@@ -1,15 +1,18 @@
 #!/usr/bin/bash
 
 source ./utils.sh
+source ./parse_options.sh
 
 declare -r INVALID_TIMEZONE=1
 declare -r INVALID_HOSTNAME=2
 
+declare -i is_interactive=1
+
 function usage () {
     cat <<-EOF
 Usage:
- $scriptName [-i|--interactive]
- $scriptName [options]
+ $script_name [-i|--interactive]
+ $script_name [options]
 
 Options:
  -t, --timezone <Area/Location>
@@ -17,63 +20,60 @@ Options:
 
  -h, --help
 EOF
+    exit 0
 }
 
-function evalOpts () {
-    local opts=$(getopt -l "timezone:,hostname:,help" -o "t:H:h" -- "$@")
-    eval set -- "$opts"
-    noOptions "$1" $#
-    isNotInteractive $# "-i" "--interactive" $1 || return $?
-    opts=$(getopt -l "username:,password:,help" -o "u:p:h")
-    eval set -- "$opts"
+function set_timezone () { timezone="$1"; }
+function set_hostname () { hostname="$1"; }
+function toggle_interactive () { is_interactive=0; }
 
-    while [[ $1 != "--" ]]; do
-        case $1 in
-            (-h|--help)
-                usage
-                exit 0
-            ;;
-            (-t|--timezone)
-                timezone="$2"
-            ;;
-            (-H|--hostname)
-                hostname="$2"
-            ;;
-        esac
-        shift 2
-    done
+function eval_script_options () {
+    declare -a script_options=("$@")
 
-    handleParams "$@"
+    declare -A opt1 opt2 opt3 opt4
+    create_option --long-option="timezone" --short-option="t" --argument="true" --callback=set_timezone opt1
+    create_option --long-option="hostname" --short-option="H" --argument="true" --callback=set_hostname opt2
+    create_option --long-option="help" --short-option="h" --early --callback=usage opt3
+    create_option --long-option="interactive" --short-option="i" --callback=toggle_interactive opt4
+
+    declare -A usage1 usage2
+    set_usage usage1 opt1 opt2 opt3
+    set_usage usage2 opt3 opt4
+
+    declare -A response
+    handle_usages response script_options usage1 usage2 || return $?
+
+    invoke_callbacks response
 }
 
-function inputTimezone () {
+function input_timezone () {
     read -rp "Enter your timezone: " timezone
 }
 
-function inputHostname () {
+function input_hostname () {
     read -rp "Enter your hostname: " hostname
 }
 
-function checkTimezone () {
+function check_timezone () {
     if [[ -z "$(timedatectl list-timezones | grep -oP "^$timezone$")" ]]; then
-        exit $INVALID_TIMEZONE
+        return $INVALID_TIMEZONE
     fi
 }
 
-function checkHostname () {
+function check_hostname () {
     if [[ -z "$(echo "$hostname" | grep -oP "^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$")" ]]; then
-        exit $INVALID_HOSTNAME
+        return $INVALID_HOSTNAME
     fi
 }
 
-function setTimezone () {
+function set_timezone () {
     arch-chroot /mnt &>/dev/null <<-EOF
 ln -sf /usr/share/zoneinfo/$timezone /etc/localtime
 hwclock --systohc
 EOF
 }
 
-function generateLocales () {
+function generate_locales () {
     arch-chroot /mnt &>/dev/null <<-EOF
 echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
 locale-gen
@@ -81,7 +81,7 @@ echo "LANG=en_US.UTF-8" > /etc/locale.conf
 EOF
 }
 
-function setHostname () {
+function set_hostname () {
     arch-chroot /mnt &>/dev/null <<-EOF
 echo "$hostname" > /etc/hostname
 cat > /etc/hosts <<-EOF2
@@ -93,18 +93,16 @@ EOF
 }
 
 function main () {
-    inISO
+    is_running_in_iso || return $?
 
-    local notInteractive=0
-    evalOpts "$@" || notInteractive=$?
+    eval_script_options "$@" || return $?
 
-    verify $notInteractive inputTimezone checkTimezone
-    verify $notInteractive inputHostname checkHostname
+    verify $is_interactive input_timezone check_timezone || return $?
+    verify $is_interactive input_hostname check_hostname || return $?
 
-    setTimezone
-    generateLocales
-    setHostname
-
+    set_timezone
+    generate_locales
+    set_hostname
 }
 
 main "$@"

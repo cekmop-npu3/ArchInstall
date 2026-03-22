@@ -1,19 +1,19 @@
 #!/usr/bin/bash
 
-#TODO: Add interactive mode
+#TODO: Parse the file to install from
 
 set -euo pipefail
 
 source ./utils.sh
 
-function checkFilesystem () {
+function check_filesystem () {
     if ! findmnt -R /mnt &>/dev/null; then
         echo "Filesystem is not mounted"
-        exit $NO_FILESYSTEM
+        return $NO_FILESYSTEM
     fi
 }
 
-function installPackages () {
+function install_packages () {
     pacstrap -K /mnt base base-devel linux linux-firmware \
         intel-ucode git openssh grub efibootmgr lvm2 cryptsetup
 
@@ -28,10 +28,11 @@ function installPackages () {
 }
 
 function main () {
-    inISO
-    checkFilesystem
+    is_running_in_iso || return $?
 
-    installPackages
+    check_filesystem || return $?
+
+    install_packages
 }
 
 main

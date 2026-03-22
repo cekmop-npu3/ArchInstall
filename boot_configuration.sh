@@ -3,68 +3,72 @@
 set -euo pipefail
 
 source ./utils.sh
+source ./parse_options.sh
 
-declare -r NO_FILESYSTEM=1
+readonly NO_FILESYSTEM=1
 
 function usage () {
     cat <<EOF
 Usage:
- $scriptName [options]
+ $script_name [options]
 
 Options:
  -h, --help                 Show this help
 
 Error codes:
  NO_FILESYSTEM=1            Filesystem is not mounted
- PARAM_SPECIFIED=101        Unknown param is specified
 EOF
+    exit 0
 }
 
-function evalOpts () {
-    local opts="$(getopt -l "help" -o "h" -- "$@")"
-    eval set -- "$opts"
+function eval_script_options () {
+    declare -a script_options=("$@")
 
-    if [[ "$1" == "-h" || "$1" == "--help" ]]; then
-        usage
-        exit 0
-    fi
+    declare -A opt1
+    create_option --long-option="help" --short-option="h" --callback=usage opt1
 
-    handleParams "$@"
+    declare -A usage1
+    set_usage usage1 opt1
+
+    declare -A response
+    handle_usages response script_options usage1 || return $?
+
+    invoke_callbacks response
 }
 
-function checkFilesystem () {
+function check_filesystem () {
     if ! findmnt -R /mnt &>/dev/null; then
         echo "Filesystem is not mounted"
-        exit $NO_FILESYSTEM
+        return $NO_FILESYSTEM
     fi
 }
 
-function installDependencies () {
+function install_dependencies () {
     local dependencies="grub efibootmgr"
     if [[ -n "${lvm:-}" ]]; then
         dependencies+=" lvm2"
     fi
-    if [[ -n "${luksUUID:-}" ]]; then
+    if [[ -n "${luks_uuid:-}" ]]; then
         dependencies+=" cryptsetup"
     fi
     pacstrap -K /mnt $dependencies
 }
 
-function resolveCryptedPartition () {
-    cryptPath="$(findmnt -o SOURCE -n /mnt)"
-    local cryptList="$(lsblk -o NAME,TYPE -snl "$cryptPath")"
-    cryptName="$(echo "$cryptList" | grep -oP "\w+(?=\s+crypt)")"
-    disk="/dev/$(echo "$cryptList" | grep -oP "\w+(?=\s+disk)")"
+function resolve_crypted_partition () {
+    crypt_path="$(findmnt -o SOURCE -n /mnt)"
+    local crypt_list="$(lsblk -o NAME,TYPE -snl "$crypt_path")"
+    crypt_name="$(echo "$crypt_list" | grep -oP "\w+(?=\s+crypt)")"
+    disk="/dev/$(echo "$crypt_list" | grep -oP "\w+(?=\s+disk)")"
     partition="$(lsblk -o PTTYPE --noheadings --nodeps "$disk")"
-    if [[ -n "$cryptName" ]]; then
-        luksUUID="$(blkid -s UUID -o value /dev/"$(echo "$cryptList" | grep -oP "\w+(?=\s+part)")")"
+    if [[ -n "$crypt_name" ]]; then
+        luks_uuid="$(blkid -s UUID -o value /dev/"$(echo "$crypt_list" | grep -oP "\w+(?=\s+part)")")"
     fi
-    lvm="$(echo "$cryptList" | grep -oP "\w+(?=\s+lvm)")"
+    lvm="$(echo "$crypt_list" | grep -oP "\w+(?=\s+lvm)")"
 }
 
-function generateInitramfs () {
+function generate_initramfs () {
     local hooks="base systemd autodetect microcode modconf kms keyboard sd-vconsole block "
-    if [[ -n "${luksUUID:-}" ]]; then
+    if [[ -n "${luks_uuid:-}" ]]; then
         hooks+="sd-encrypt "
     fi
     if [[ -n "${lvm:-}" ]]; then
@@ -77,16 +81,16 @@ function generateInitramfs () {
 EOF
 }
 
-function configureGrub () {
+function configure_grub () {
     if [[ "$partition" == "gpt" ]]; then
         arch-chroot /mnt <<< 'grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB'
     else
         arch-chroot /mnt <<< "grub-install --target=i386-pc $disk"
     fi
     arch-chroot /mnt <<< 'grub-mkconfig -o /boot/grub/grub.cfg'
-    if [[ -n "${luksUUID:-}" ]]; then
+    if [[ -n "${luks_uuid:-}" ]]; then
         arch-chroot /mnt <<-EOF
-sed -i 's|^GRUB_CMDLINE_LINUX=""$|GRUB_CMDLINE_LINUX="rd.luks.name=$luksUUID=$cryptName root=$cryptPath"|' /etc/default/grub
+sed -i 's|^GRUB_CMDLINE_LINUX=""$|GRUB_CMDLINE_LINUX="rd.luks.name=$luks_uuid=$crypt_name root=$crypt_path"|' /etc/default/grub
 sed -i 's/^#GRUB_ENABLE_CRYPTODISK=y$/GRUB_ENABLE_CRYPTODISK=y/' /etc/default/grub
 EOF
     fi
@@ -94,21 +98,22 @@ EOF
 }
 
 function main () {
-    inISO
-    checkFilesystem
+    is_running_is_iso || return $?
+    check_filesystem || return $?
 
-    evalOpts "$@"
+    eval_script_options "$@" || return $?
 
-    declare fds="$(getAvailableDescriptors)"
-    toggleOutput $fds
+    declare -A descriptor_array
+    get_available_descriptors descriptor_array
+    toggle_output descriptor_array
 
     genfstab -U /mnt > /mnt/etc/fstab
-    resolveCryptedPartition 
-    installDependencies
-    generateInitramfs
-    configureGrub
+    resolve_crypted_partition 
+    install_dependencies
+    generate_initramfs
+    configure_grub
 
-    toggleOutput $fds
+    toggle_output descriptor_array
 }
 
 main "$@"

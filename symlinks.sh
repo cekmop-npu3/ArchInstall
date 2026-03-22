@@ -1,140 +1,117 @@
 #!/usr/bin/bash
 
-# TODO: Add interactive mode
-
 set -euo pipefail
 
-readonly INVALID_USERNAME=1
+source ./utils.sh
+source ./parse_options.sh
+
 readonly INVALID_CONFIG_PATH=2
 readonly INVALID_ACTION=3
 readonly INVALID_CONFIG_ARGS=4
-readonly INVALID_SYMLINK=5
-readonly PARAM_SPECIFIED=6
+readonly NOT_ABSOLUTE=5
+readonly INVALID_SYMLINK=6
 
-readonly scriptName=$(basename "$0")
+declare -i is_interactive=1
 
 function usage () {
     cat <<EOF
 Usage:
- $scriptName [options] 
+ $script_name [-i|--interactive]
+ $script_name [options] 
+ Script is intended to be run in a mounted system
 
 Options:
- -u, --username <username>                User to install config files to
- -p, --configPath <path_to_config_file>   Path to config file with symlink targets
- -a, --action <action>                    Whether to "create" or "delete" symlinks 
+ -p, --config-path <path_to_config_file>  Path to config file with symlink targets in a format:
+    absolute_target absolute_link 
+ -a, --action <action>                    Whether to "create" or "delete" symlinks. Default is "create"
 
  -h, --help                               Display this help
 EOF
     exit 0
 }
 
-function resolveOpts () {
-    local newOpts=$(getopt -l "help,username:,configPath:,action:" -o "hu:p:a:" -- $@)
-    eval set -- "$newOpts"
-    
-    if [[ "$1" == "--" && "$#" == 1 ]]; then
-	    usage
-    fi
+function set_config_path () { config_path="${1:-}"; }
+function set_action () { action="${1:-}"; }
+function toggle_interactive () { is_interactive=0; }
 
-    while [[ $1 != "--" ]]; do
-	    case $1 in 
-	        (-h|--help)
-		        usage
-	        ;;
-	        (-u|--username)
-		        if ! id "${2:-}" &>/dev/null; then
-		            echo "User \"$2\" does not exist"
-		            exit $INVALID_USERNAME
-		        fi
-		        username="$2"
-	        ;;
-	        (-p|--configPath)
-		        if ! [[ -e "$2" ]]; then
-		            echo "Configuration file \"$2\" is not found"
-		            exit $INVALID_CONFIG_PATH
-		        fi
-		        configPath="$2"
-	        ;;
-	        (-a|--action)
-		        if [[ ${2:="create"} != "create" && "$2" != "delete" ]]; then
-		            echo "Action parameter must be either create or delete, not \"$2\""
-		            exit $INVALID_ACTION
-		        fi
-		        action="$2"
-	        ;;
-	    esac
-	    shift 2
-    done
+function eval_script_options () {
+    declare -a script_options=("$@")
 
-    shift 1
-    if [[ -n ${1:-} ]]; then
-	    echo "Unknown param \"$1\" specified"
-	    exit $PARAM_SPECIFIED
+    declare -A opt1 opt2 opt3 opt4
+    create_option --long-option="config-path" --short-option="c" --argument="true" --callback=set_config_path opt1
+    create_option --long-option="action" --short-option="a" --argument="true" --callback=set_action opt2
+    create_option --long-option="help" --short-option="h" --early --callback=usage opt3
+    create_option --long-option="interactive" --short-option="i" --early --callback=toggle_interactive opt4
+
+    declare -A usage1 usage2
+    set_usage usage1 opt1 opt2 opt3
+    set_usage usage2 opt3 opt4
+
+    declare -A response
+    handle_usages response script_options usage1 usage2 || return $?
+
+    invoke_callbacks response
+}
+
+function input_config_path () {
+    read -rp "Enter your config file path: " config_path
+}
+
+function input_action () {
+    read -rp "Enter your action. Default is \"create\": " action
+}
+
+function check_config_path () {
+    if [[ -z "$config_path" ]] || ! [[ -e "$config_path" ]]; then
+        return $INVALID_CONFIG_PATH
     fi
 }
 
-function checkVariables () {
-    if [[ -z ${username:-} ]]; then 
-	    echo "Username was not specified"
-	    exit $INVALID_USERNAME
-    elif [[ -z ${configPath:-} ]]; then 
-	    echo "Config path was not specified"
-	    exit $INVALID_CONFIG_PATH
-    elif [[ -z ${action:-} ]]; then 
-	    echo "Action was not specified"
-	    exit $INVALID_ACTION
+function check_action () {
+    if [[ -z "$action" ]]; then
+        action="create"
+    elif [[ "${action,,}" != "create" && "${action,,}" != "delete" ]]; then
+        return $INVALID_ACTION
     fi
 }
 
-function expandConfigFile () {
-    local subs=( $(grep -oP '\$\K\w+(?=\s*|$|/)' "$configPath") )
-    local sub=
-    for sub in ${subs[@]}; do
-	    local -n ref="$sub"
-	    echo "$ref"
-	    sed -i "s/\$$sub/$ref/" $configPath
-    done
-}
+function parse_config_file () {
+    local -a lines
+    mapfile -t lines < "$config_path"
+    local -i index=0
 
-function parseConfig () {
-    exec 2>> "./errors.log"
+    local target link
 
-    resolveOpts $@
-    checkVariables
-    expandConfigFile
-
-    mapfile -t targets < "$configPath"
-    local args=
-    local target=
-    local link=
-    local -i lineCount=0
-
-    for args in "${targets[@]}"; do
-        # TODO: Check for absolute path in target
-	    target=$(echo "$args" | grep -oP '^\S+(?=\s+)')
-	    link=$(echo "$args" | grep -oP '\s+\K.+$')
-
-	    if ! [[ -e "$target" ]]; then
-	        echo "Target is invalid"
-	        exit $INVALID_CONFIG_ARGS
-	    fi
-
-	    case $action in
-	        (create)
-		        if ! ln -sf "$target" "$link"; then
-		            echo "Invalid args at line: $lineCount"
+    for (( ; index<${#lines}; index++ )); do
+        IFS=' ' read -r target link <<< "${lines[$index]}"
+        { [[ -n "$target" ]] && [[ "${target:0:1}" == "/" ]]; } || return $NOT_ABSOLUTE
+        { [[ -n "$link" ]] && [[ "${link:0:1}" == "/" ]]; } || return $NOT_ABSOLUTE
+        case "$action" in
+            (create)
+		        if ! ln -sf "$target" "$link" &>/dev/null; then
+                    echo "Invalid path at line: $(( $index + 1 ))"
 		            exit $INVALID_CONFIG_ARGS
 		        fi
-	        ;;
-	        (delete)
-		        if ! unlink "$link"; then
-		            echo "Invalid symlink at line: $lineCount"
+            ;;
+            (delete)
+		        if ! [[ -L "$link" ]] || ! unlink "$link" &>/dev/null; then
+                    echo "Invalid symlink at line: $(( $index + 1 ))"
 		            exit $INVALID_SYMLINK
 		        fi
-	        ;;
-	    esac
-	    (( ++lineCount ))
+            ;;
+        esac
     done
 }
 
-parseConfig $@
+function main () {
+    ! is_running_is_iso || return $?
+
+    eval_script_options "$@" || return $?
+    verify $is_interactive input_config_path check_config_path || return $?
+    verify $is_interactive input_action check_action || return $?
+
+    parse_config_file || return $?
+}
+
+main "$@"
+

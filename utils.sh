@@ -2,57 +2,30 @@
 
 source ./make_sourced.sh
 
-declare -r INTERACTIVE_MODE=100
-declare -r PARAM_SPECIFIED=101
-declare -r NO_USAGE_FUNC=102
-declare -r NOT_IN_ISO=103
+readonly NOT_IN_ISO=100
+readonly INVALID_FUNCTION=101
 
-declare -r scriptName=$(basename "$0")
+readonly script_name=$(basename "$0")
 
-function inISO () {
+function is_running_in_iso () {
     if ! { command -v arch-chroot &>/dev/null && [[ -d /run/archiso ]]; }; then
-        exit $NOT_IN_ISO
+        return $NOT_IN_ISO
     fi
 }
 
-function noOptions () {
-    local firstOpt="$1"
-    local optCount=$2
-
-    if [[ "$firstOpt" == "--" && "$optCount" == 1 ]]; then
-        if ! declare -F usage; then
-            echo "\"usage\" function was not implemented in the ${BASH_SOURCE[0]} script"
-            exit $NO_USAGE_FUNC
-        fi
-        usage
-        exit 0
+# Parameters:
+#  $1 -> func_name
+function is_defined_function () {
+    if ! declare -f "$1" &>/dev/null; then
+        return $INVALID_FUNCTION
     fi
 }
 
-function isNotInteractive () {
-    local optCount=$1
-    local shortOpt=$2
-    local longOpt=$3
-    local opt=$4
+# Parameters:
+#  $1 -> descriptor_array(declare -A)
+function get_available_descriptors () {
+    local -n descriptor_array="$1"
 
-    if [[ "$opt" == "$shortOpt" || "$opt" == "$longOpt" ]] && [[ "$optCount" == 2 ]]; then
-        return $INTERACTIVE_MODE
-    fi
-    return 0
-}
-
-function handleParams () {
-    # $@ -> command line arguments of a script
-    shift 1  # Skips "--" delimeter
-    if [[ -n ${1:-} ]]; then
-        echo "Unknown param \"$1\" specified" >&2
-        exit $PARAM_SPECIFIED
-    fi
-}
-
-function getAvailableDescriptors () {
-    # Echoes the list of 2 available descriptors 
-    # to save stdout and stderr to
     local -a fds=( $(ls "/proc/$$/fd") )
     local -i stdout=0
     local -i stderr=1
@@ -63,37 +36,50 @@ function getAvailableDescriptors () {
             break
         fi
     done
-    echo "$stdout $stderr"
+    descriptor_array=(
+        ["stdout"]=stdout
+        ["stderr"]=stderr
+    )
 }
 
-function toggleOutput () {
-    local -a fds=( "$@" )
+# Parameters:
+#  $1 -> descriptor_array(declare -A) from get_available_descriptors
+function toggle_output () {
+    local -n descriptor_array="$1"
 
     if [[ $(readlink "/proc/$$/fd/1") != "/dev/null" ]]; then
-        eval "exec ${fds[0]}>&1"
-        eval "exec ${fds[1]}>&2"
+        eval "exec ${descriptor_array['stdout']}>&1"
+        eval "exec ${descriptor_array['stderr']}>&2"
         exec &>/dev/null
     else
-        eval "exec 1>&${fds[0]}"
-        eval "exec 2>&${fds[1]}"
+        eval "exec 1>&${descriptor_array['stdout']}"
+        eval "exec 2>&${descriptor_array['stderr']}"
     fi
 }
 
+# Parameters:
+#  $1 -> is_interactive [bool]
+#  $2 -> input_func(declare -f)
+#  $3 -> check_func(declare -f)
+# Description:
+#  If check_func returns non-zero status code
+#  and the script is interactive - keeps calling input_func.
+#  If the script is not interactive - returns check_func status code
 function verify () {
-    # If checkFunc returns non-zero status code
-    # and the script is interactive - keeps calling chooseFunc.
-    # If the script is not interactive - exits
-    local notInteractive="$1"
-    local chooseFunc="$2"
-    local checkFunc="$3"
+    is_defined_function "$2" || return $?
+    is_defined_function "$3" || return $?
+
+    local is_interactive="$1"
+    local input_func="$2"
+    local check_func="$3"
 
     while true; do
         # If interactive then chooseFunc gets called
-        (( ! notInteractive )) || $chooseFunc
+        (( is_interactive )) || $input_func
         # Save the status code of a checkFunc
-        { $checkFunc && ! (( code = $? )); } || ! (( code = $? ))
+        { $check_func && ! (( code = $? )); } || ! (( code = $? ))
         # If code != 0 then exit if not interactive
-        { (( ! code )) && break; } || { (( notInteractive )) || exit $code; }
+        { (( ! code )) && break; } || { (( ! is_interactive )) || return $code; }
     done
 }
 

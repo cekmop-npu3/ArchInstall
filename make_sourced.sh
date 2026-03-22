@@ -2,15 +2,15 @@
 
 declare RAN_DIRECTLY=1
 
-declare scriptName=$(basename "$0")
+declare script_name=$(basename "$0")
 
 function usage () {
     cat <<EOF
 Usage:
- source ./$scriptName
+ source ./$script_name
 
 Exit codes:
- $scriptName returns 1 if it's ran directly. Only intended to be sourced
+ $script_name returns 1 if it's ran directly. Only intended to be sourced
 EOF
 }
 
@@ -20,5 +20,5 @@ EOF
 
 unset -f usage
 unset RAN_DIRECTLY
-unset scriptName
+unset script_name
 
