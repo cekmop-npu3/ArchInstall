@@ -2,8 +2,8 @@
 
 set -euo pipefail
 
-source ./utils.sh
 source ./parse_options.sh
+source ./utils.sh
 
 readonly NO_FILESYSTEM=1
 
@@ -98,7 +98,7 @@ EOF
 }
 
 function main () {
-    is_running_is_iso || return $?
+    is_running_in_iso || return $?
     check_filesystem || return $?
 
     eval_script_options "$@" || return $?

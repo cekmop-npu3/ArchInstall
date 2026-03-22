@@ -1,5 +1,7 @@
 #!/usr/bin/bash
 
+# TODO: password-related bug
+
 source ./utils.sh
 source ./parse_options.sh
 

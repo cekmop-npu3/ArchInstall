@@ -1,5 +1,7 @@
 #!/usr/bin/bash
 
+# TODO: mkdir on each ln call
+
 set -euo pipefail
 
 source ./utils.sh

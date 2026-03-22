@@ -23,16 +23,16 @@ EOF
     exit 0
 }
 
-function set_timezone () { timezone="$1"; }
-function set_hostname () { hostname="$1"; }
+function _set_timezone () { timezone="${1:-}"; }
+function _set_hostname () { hostname="${1:-}"; }
 function toggle_interactive () { is_interactive=0; }
 
 function eval_script_options () {
     declare -a script_options=("$@")
 
     declare -A opt1 opt2 opt3 opt4
-    create_option --long-option="timezone" --short-option="t" --argument="true" --callback=set_timezone opt1
-    create_option --long-option="hostname" --short-option="H" --argument="true" --callback=set_hostname opt2
+    create_option --long-option="timezone" --short-option="t" --argument="true" --callback=_set_timezone opt1
+    create_option --long-option="hostname" --short-option="H" --argument="true" --callback=_set_hostname opt2
     create_option --long-option="help" --short-option="h" --early --callback=usage opt3
     create_option --long-option="interactive" --short-option="i" --callback=toggle_interactive opt4
 

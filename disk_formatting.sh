@@ -160,7 +160,7 @@ function choose_disk () {
     local disk_name
 
     echo "Enter your disk name or EXIT to exit the script: "
-    select diskName in ${disks[@]}; do
+    select disk_name in ${disks[@]}; do
 	    if [[ "$disk_name" == "EXIT" ]]; then
 	        exit 0
         fi
