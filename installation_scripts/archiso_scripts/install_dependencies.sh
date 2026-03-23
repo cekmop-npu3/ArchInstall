@@ -5,6 +5,7 @@
 set -euo pipefail
 
 source "${INSTALL_DIR:-}/utils/utils.sh"
+source "${INSTALL_DIR:-}/utils/parse_options.sh"
 
 function usage () {
     cat <<EOF

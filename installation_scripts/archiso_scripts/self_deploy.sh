@@ -68,9 +68,10 @@ function check_filesystem () {
 
 function copy () {
     script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+    local install_root="$(cd "$script_dir/../.." && pwd -P)"
     local target_uid=$(grep "^$username:" "/mnt/etc/passwd" | cut -d: -f3)
     local target_gid=$(grep "^$username:" "/mnt/etc/group" | cut -d: -f3)
-    rsync -av --chown="$target_uid:$target_gid" "$script_dir" "/mnt/home/$username/"
+    rsync -av --chown="$target_uid:$target_gid" "$install_root" "/mnt/home/$username/" &>/dev/null
 
 }
 

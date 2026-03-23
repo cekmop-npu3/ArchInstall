@@ -93,7 +93,7 @@ EOF
 }
 
 function populate_vconsole () {
-    arch-chroot /mnt <<< "echo 'KEYMAP=\"us\"' > /etc/vconsole.conf"
+    arch-chroot /mnt &>/dev/null <<< "echo 'KEYMAP=\"us\"' > /etc/vconsole.conf"
 }
 
 function main () {
