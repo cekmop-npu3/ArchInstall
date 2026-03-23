@@ -1,4 +1,4 @@
-# installation_scripts
+# Installation scripts
 
 This directory contains scripts for installing and configuring Arch Linux.
 
@@ -11,15 +11,13 @@ Run commands from Arch ISO unless stated otherwise.
 - Target disk identified (for example `/dev/nvme0n1`).
 - `installation_scripts` present on the live system.
 
-Export script root once:
+<a id=INSTALL_DIR></a>Export script root:
 
 ```bash
 export INSTALL_DIR="$(pwd -P)"
 ```
 
-Run this command inside the `installation_scripts` directory.
-
-## Execution Sequence (Arch ISO phase)
+## Execution Sequence
 
 Run scripts in this order:
 
@@ -35,13 +33,13 @@ Run scripts in this order:
 Interactive:
 
 ```bash
-bash archiso_scripts/disk_formatting.sh -i
+./disk_formatting.sh -i
 ```
 
-Non-interactive example:
+Non-interactive:
 
 ```bash
-bash archiso_scripts/disk_formatting.sh \
+./disk_formatting.sh \
   --disk /dev/nvme0n1 \
   --root 80 \
   --swap 16 \
@@ -59,7 +57,7 @@ export PASSWORD='your_luks_password'
 ### 2) Install base and desktop packages
 
 ```bash
-bash archiso_scripts/install_dependencies.sh
+./install_dependencies.sh
 ```
 
 ### 3) Configure timezone, locale, hostname, vconsole
@@ -67,13 +65,13 @@ bash archiso_scripts/install_dependencies.sh
 Interactive:
 
 ```bash
-bash archiso_scripts/system_configuration.sh -i
+./system_configuration.sh -i
 ```
 
-Non-interactive example:
+Non-interactive:
 
 ```bash
-bash archiso_scripts/system_configuration.sh \
+./system_configuration.sh \
   --timezone Europe/Minsk \
   --hostname arch-host
 ```
@@ -83,13 +81,13 @@ bash archiso_scripts/system_configuration.sh \
 Interactive:
 
 ```bash
-bash archiso_scripts/add_user.sh -i
+./add_user.sh -i
 ```
 
-Non-interactive example:
+Non-interactive:
 
 ```bash
-bash archiso_scripts/add_user.sh --username youruser --password -
+./add_user.sh --username youruser --password -
 ```
 
 If you pass `--password -`, export password first:
@@ -101,19 +99,61 @@ export PASSWORD='your_user_password'
 ### 5) Configure initramfs and GRUB
 
 ```bash
-bash archiso_scripts/boot_configuration.sh
+./boot_configuration.sh
 ```
 
 ### 6) Copy scripts into installed system user home
 
 ```bash
-bash archiso_scripts/self_deploy.sh --username youruser
+./self_deploy.sh --username youruser
 ```
 
-## Optional Post-Install (inside installed system)
+## Post-Install (inside installed system)
 
 There are scripts in `mnt_scripts/` intended for post-install tasks:
 
 - `mnt_scripts/misc.sh`
 - `mnt_scripts/symlinks.sh`
+
+Before running `mnt_scripts/*`, set [INSTALL_DIR](#INSTALL_DIR).
+
+### 1) Miscelaneous tasks
+
+- Enable user/system services.
+- Set shell profile snippets.
+- Clone and build `lua-language-server`.
+
+Run:
+
+```bash
+./misc.sh
+```
+
+### 2) Create or delete symlinks
+
+Purpose:
+- Create or delete symlinks from a config file with lines in format:
+  `absolute_target absolute_link`
+
+Interactive:
+
+```bash
+./symlinks.sh -i
+```
+
+Non-interactive create:
+
+```bash
+./symlinks.sh \
+  --config-path /absolute/path/to/symlinks.conf \
+  --action create
+```
+
+Non-interactive delete:
+
+```bash
+./symlinks.sh \
+  --config-path /absolute/path/to/symlinks.conf \
+  --action delete
+```
 

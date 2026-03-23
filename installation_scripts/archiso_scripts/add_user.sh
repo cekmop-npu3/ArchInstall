@@ -1,5 +1,6 @@
 #!/usr/bin/bash
 
+set -euo pipefail
 # TODO: password-related bug
 
 source "${INSTALL_DIR:-}/utils/utils.sh"

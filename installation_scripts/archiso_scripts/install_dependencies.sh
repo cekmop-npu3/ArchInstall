@@ -6,6 +6,32 @@ set -euo pipefail
 
 source "${INSTALL_DIR:-}/utils/utils.sh"
 
+function usage () {
+    cat <<EOF
+Usage:
+ $script_name [options]
+
+Options:
+ -h, --help                 Show this help
+EOF
+    exit 0
+}
+
+function eval_script_options () {
+    declare -a script_options=("$@")
+
+    declare -A opt1
+    create_option --long-option="help" --short-option="h" --callback=usage opt1
+
+    declare -A usage1
+    set_usage usage1 opt1
+
+    declare -A response
+    handle_usages response script_options usage1 || return $?
+
+    invoke_callbacks response
+}
+
 function check_filesystem () {
     if ! findmnt -R /mnt &>/dev/null; then
         echo "Filesystem is not mounted"
@@ -30,10 +56,12 @@ function install_packages () {
 function main () {
     is_running_in_iso || return $?
 
+    eval_script_options "$@"
+
     check_filesystem || return $?
 
     install_packages
 }
 
-main
+main "$@"
 

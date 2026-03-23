@@ -14,4 +14,5 @@ vim.o.autoindent = true
 vim.o.smartindent = true
 vim.g.mapleader = " "
 vim.o.clipboard = "unnamedplus"
-
+vim.o.completeopt= "menu,menuone,popup,noinsert"
+vim.o.autowriteall = true

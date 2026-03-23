@@ -20,7 +20,6 @@ function usage () {
 Usage:
  $script_name [-i|--interactive]
  $script_name [options] 
- Script is intended to be run in a mounted system
 
 Options:
  -p, --config-path <path_to_config_file>  Path to config file with symlink targets in a format:
@@ -90,7 +89,8 @@ function parse_config_file () {
         { [[ -n "$link" ]] && [[ "${link:0:1}" == "/" ]]; } || return $NOT_ABSOLUTE
         case "$action" in
             (create)
-		        if ! ln -sf "$target" "$link" &>/dev/null; then
+                mkdir -p "$(dirname "$link")"
+		        if ! ln -sfn "$target" "$link" &>/dev/null; then
                     echo "Invalid path at line: $(( $index + 1 ))"
 		            exit $INVALID_CONFIG_ARGS
 		        fi
@@ -106,7 +106,7 @@ function parse_config_file () {
 }
 
 function main () {
-    ! is_running_is_iso || return $?
+    ! is_running_in_iso || return $?
 
     eval_script_options "$@" || return $?
     verify $is_interactive input_config_path check_config_path || return $?

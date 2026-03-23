@@ -4,6 +4,32 @@ set -eus pipefail
 
 source "${INSTALL_DIR:-}/utils.sh"
 
+function usage () {
+    cat <<EOF
+Usage:
+ $script_name [options]
+
+Options:
+ -h, --help                 Show this help
+EOF
+    exit 0
+}
+
+function eval_script_options () {
+    declare -a script_options=("$@")
+
+    declare -A opt1
+    create_option --long-option="help" --short-option="h" --callback=usage opt1
+
+    declare -A usage1
+    set_usage usage1 opt1
+
+    declare -A response
+    handle_usages response script_options usage1 || return $?
+
+    invoke_callbacks response
+}
+
 function enable_services () {
     systemctl --user enable pipewire wireplumber
     systemctl enable NetworkManager
@@ -30,6 +56,8 @@ function clone_repositoriees () {
 function main () {
     ! is_running_in_iso || return $?
 
+    eval_script_options "$@" || return $?
+
     declare -A descriptor_array
     get_available_descriptors descriptor_array
 
@@ -39,3 +67,5 @@ function main () {
     enable_services
     toggle_output descriptor_array
 }
+
+main "$@"
