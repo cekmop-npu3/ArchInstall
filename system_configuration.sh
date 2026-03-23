@@ -92,6 +92,10 @@ EOF2
 EOF
 }
 
+function populate_vconsole () {
+    arch-chroot /mnt <<< "echo 'KEYMAP=\"us\"' > /etc/vconsole.conf"
+}
+
 function main () {
     is_running_in_iso || return $?
 
@@ -103,6 +107,7 @@ function main () {
     set_timezone
     generate_locales
     set_hostname
+    populate_vconsole
 }
 
 main "$@"
