@@ -54,6 +54,11 @@ function install_packages () {
         hyprland alacritty hyprpaper copyq rofi hyprlock nautilus brightnessctl hyprshot
 }
 
+function update_mirrorlist () {
+    local path="$1"
+    reflector --country Belarus,Russia,Poland,Netherlands,Germany,Ukraine,Switzerland --protocol https --latest 15 --ipv4 --sort rate --save "$path"
+}
+
 function main () {
     is_running_in_iso || return $?
 
@@ -61,7 +66,9 @@ function main () {
 
     check_filesystem || return $?
 
+    update_mirrorlist "/etc/pacman.d/mirrorlist"
     install_packages
+    update_mirrorlist "/mnt/etc/pacman.d/mirrorlist"
 }
 
 main "$@"
