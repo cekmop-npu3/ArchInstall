@@ -1,8 +1,9 @@
 #!/usr/bin/bash
 
-set -eus pipefail
+set -euo pipefail
 
-source "${INSTALL_DIR:-}/utils.sh"
+source "${INSTALL_DIR:-}/utils/utils.sh"
+source "${INSTALL_DIR:-}/utils/parse_options.sh"
 
 function usage () {
     cat <<EOF
@@ -36,6 +37,7 @@ function enable_services () {
     systemctl enable bluetooth
     systemctl enable sshd
 }
+
 function populate_bash_files () {
     ~/.bash_profile <<-'EOF'
 if uwsm check may-start; then
@@ -47,10 +49,14 @@ export MANPAGER="nvim -c 'Man!' -"
 export PATH=$PATH:~/lua-language-server/bin
 EOF
 }
-function clone_repositoriees () {
+
+function clone_repositories () {
     git clone https://github.com/LuaLS/lua-language-server ~/lua-language-server
     chmod +x ~/lua-language-server/make.sh
-    ~/lua-language-server/make.sh
+    (
+        cd ~/lua-language-server
+        ./make.sh
+    )
 }
 
 function main () {
@@ -58,14 +64,9 @@ function main () {
 
     eval_script_options "$@" || return $?
 
-    declare -A descriptor_array
-    get_available_descriptors descriptor_array
-
-    toggle_output descriptor_array
     clone_repositories
     populate_bash_files
     enable_services
-    toggle_output descriptor_array
 }
 
 main "$@"

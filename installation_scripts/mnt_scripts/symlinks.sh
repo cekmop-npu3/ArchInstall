@@ -1,17 +1,17 @@
 #!/usr/bin/bash
 
-# TODO: mkdir on each ln call
-
 set -euo pipefail
 
-source "${INSTALL_DIR:-}/utils.sh"
-source "${INSTALL_DIR:-}/parse_options.sh"
+source "${INSTALL_DIR:-}/utils/utils.sh"
+source "${INSTALL_DIR:-}/utils/parse_options.sh"
 
-readonly INVALID_CONFIG_PATH=2
-readonly INVALID_ACTION=3
-readonly INVALID_CONFIG_ARGS=4
-readonly NOT_ABSOLUTE=5
-readonly INVALID_SYMLINK=6
+readonly INVALID_CONFIG_PATH=1
+readonly INVALID_ACTION=2
+readonly MISSING_DEPENDENCY=3
+readonly INVALID_CONFIG_FORMAT=4
+readonly INVALID_TARGET=5
+readonly NOT_ABSOLUTE_PATH=6
+readonly INVALID_SYMLINK=7
 
 declare -i is_interactive=1
 
@@ -23,7 +23,16 @@ Usage:
 
 Options:
  -p, --config-path <path_to_config_file>  Path to config file with symlink targets in a format:
-    absolute_target absolute_link 
+    JSON:
+{
+    "symlinks": [
+        {
+            "target": "target",
+            "link": "link",
+            "force": true
+        }
+    ]
+}
  -a, --action <action>                    Whether to "create" or "delete" symlinks. Default is "create"
 
  -h, --help                               Display this help
@@ -39,7 +48,7 @@ function eval_script_options () {
     declare -a script_options=("$@")
 
     declare -A opt1 opt2 opt3 opt4
-    create_option --long-option="config-path" --short-option="c" --argument="true" --callback=set_config_path opt1
+    create_option --long-option="config-path" --short-option="p" --argument="true" --callback=set_config_path opt1
     create_option --long-option="action" --short-option="a" --argument="true" --callback=set_action opt2
     create_option --long-option="help" --short-option="h" --early --callback=usage opt3
     create_option --long-option="interactive" --short-option="i" --early --callback=toggle_interactive opt4
@@ -76,30 +85,32 @@ function check_action () {
     fi
 }
 
+function check_dependencies () {
+    if ! command which jq &>/dev/null; then
+        return $MISSING_DEPENDENCY
+    fi
+}
+
 function parse_config_file () {
-    local -a lines
-    mapfile -t lines < "$config_path"
-    local -i index=0
+    local -a symlinks
+    mapfile -t symlinks < <(jq --tab --compact-output --exit-status '.["symlinks"][]' "$config_path") || return $INVALID_CONFIG_FORMAT
 
-    local target link
+    local symlink
+    local target link force
+    for symlink in "${symlinks[@]}"; do
+        target="$(echo "$symlink" | jq --tab --compact-output --exit-status '.["target"]')" || return $INVALID_TARGET
+        { [[ -n "$target" ]] && [[ "${target:0:1}" == "/" ]] && [[ -e "$target" ]]; } || return $NOT_ABSOLUTE_PATH
+        link="$(echo "$symlink" | jq --tab --compact-output --exit-status '.["link"]')" || return $INVALID_SYMLINK
+        { [[ -n "$link" ]] && [[ "${link:0:1}" == "/" ]]; } || return $NOT_ABSOLUTE_PATH
+        force="$(echo "$symlink" | jq --tab --compact-output '.["target"]')" && [[ "$force" == "null" ]] && force="false"
 
-    for (( ; index<${#lines}; index++ )); do
-        IFS=' ' read -r target link <<< "${lines[$index]}"
-        { [[ -n "$target" ]] && [[ "${target:0:1}" == "/" ]]; } || return $NOT_ABSOLUTE
-        { [[ -n "$link" ]] && [[ "${link:0:1}" == "/" ]]; } || return $NOT_ABSOLUTE
         case "$action" in
             (create)
                 mkdir -p "$(dirname "$link")"
-		        if ! ln -sfn "$target" "$link" &>/dev/null; then
-                    echo "Invalid path at line: $(( $index + 1 ))"
-		            exit $INVALID_CONFIG_ARGS
-		        fi
+                { [[ "$force" == "true" ]] && ln -sfn "$target" "$link" &>/dev/null || return "$INVALID_SYMLINK"; } || { ln -sn "$target" "$link" &>/dev/null || return "$INVALID_SYMLINK"; }
             ;;
             (delete)
-		        if ! [[ -L "$link" ]] || ! unlink "$link" &>/dev/null; then
-                    echo "Invalid symlink at line: $(( $index + 1 ))"
-		            exit $INVALID_SYMLINK
-		        fi
+                { [[ -L "$link" ]] && unlink "$link" &>/dev/null; } || return $INVALID_SYMLINK then
             ;;
         esac
     done
@@ -109,6 +120,7 @@ function main () {
     ! is_running_in_iso || return $?
 
     eval_script_options "$@" || return $?
+    check_dependencies || return $?
     verify $is_interactive input_config_path check_config_path || return $?
     verify $is_interactive input_action check_action || return $?
 

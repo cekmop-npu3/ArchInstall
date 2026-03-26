@@ -4,29 +4,13 @@ This directory contains scripts for installing and configuring Arch Linux.
 
 ## Prerequisites
 
-Run commands from Arch ISO unless stated otherwise.
-
-- Booted into Arch ISO.
-- Internet available.
-- Target disk identified (for example `/dev/nvme0n1`).
-- `installation_scripts` present on the live system.
-
-<a id=INSTALL_DIR></a>Export script root:
+<a id=INSTALL_DIR></a>Export absolute path of a root directory:
 
 ```bash
-export INSTALL_DIR="$(pwd -P)"
+source ./setup.sh
 ```
 
 ## Execution Sequence
-
-Run scripts in this order:
-
-1. `archiso_scripts/disk_formatting.sh`
-2. `archiso_scripts/install_dependencies.sh`
-3. `archiso_scripts/system_configuration.sh`
-4. `archiso_scripts/add_user.sh`
-5. `archiso_scripts/boot_configuration.sh`
-6. `archiso_scripts/self_deploy.sh`
 
 ### 1) Partition, encrypt/LVM, and mount
 
@@ -132,8 +116,8 @@ Run:
 ### 2) Create or delete symlinks
 
 Purpose:
-- Create or delete symlinks from a config file with lines in format:
-  `absolute_target absolute_link`
+- Create or delete symlinks from a JSON config file parsed by `jq`.
+- Example config: `mnt_scripts/symlinks.example.json`
 
 Interactive:
 
@@ -145,7 +129,7 @@ Non-interactive create:
 
 ```bash
 ./symlinks.sh \
-  --config-path /absolute/path/to/symlinks.conf \
+  --config-path path/to/symlinks.json \
   --action create
 ```
 
@@ -153,7 +137,26 @@ Non-interactive delete:
 
 ```bash
 ./symlinks.sh \
-  --config-path /absolute/path/to/symlinks.conf \
+  --config-path path/to/symlinks.json \
   --action delete
 ```
 
+Config format (`JSON`):
+
+```json
+{
+  "symlinks": [
+    {
+      "target": "/home/youruser/.dotfiles/nvim",
+      "link": "/home/youruser/.config/nvim"
+    },
+    {
+      "target": "/home/youruser/.dotfiles/alacritty.toml",
+      "link": "/home/youruser/.config/alacritty/alacritty.toml",
+      "create_parent": true,
+      "force": true,
+      "missing_ok": false
+    }
+  ]
+}
+```
