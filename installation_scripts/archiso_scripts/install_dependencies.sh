@@ -56,7 +56,13 @@ function install_packages () {
 
 function update_mirrorlist () {
     local path="$1"
-    reflector --country Belarus,Russia,Poland,Netherlands,Germany,Ukraine,Switzerland --protocol https --latest 15 --ipv4 --sort rate --save "$path"
+    reflector \
+        --country Netherlands,Germany,France,Belgium \
+        --protocol https \
+        --age 12 \
+        --sort rate \
+        --latest 20 \
+        --save "$path"
 }
 
 function main () {
