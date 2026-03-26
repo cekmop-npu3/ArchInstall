@@ -1,0 +1,24 @@
+{
+    "symlinks": [
+        {
+            "target": "~/ArchInstall/config/alacritty",
+            "link": "~/.config/alacritty",
+            "force": true
+        },
+        {
+            "target": "~/ArchInstall/config/copyq",
+            "link": "~/.config/copyq",
+            "force": true
+        },
+        {
+            "target": "~/ArchInstall/config/hypr",
+            "link": "~/.config/hypr",
+            "force": true
+        },
+        {
+            "target": "~/ArchInstall/config/nvim",
+            "link": "~/.config/nvim",
+            "force": true
+        }
+    ]
+}

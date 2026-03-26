@@ -41,7 +41,7 @@ function enable_services () {
 function populate_bash_files () {
     cat > ~/.bash_profile <<-'EOF'
 if uwsm check may-start; then
-	exec uwsm start hyprland.desktop
+    exec uwsm start hyprland.desktop
 fi
 EOF
     cat > ~/.bashrc <<-'EOF'
