@@ -98,19 +98,25 @@ function parse_config_file () {
     local symlink
     local target link force
     for symlink in "${symlinks[@]}"; do
-        target="$(echo "$symlink" | jq --tab --compact-output --exit-status '.["target"]')" || return $INVALID_TARGET
+        target="$(echo "$symlink" | jq --tab --raw-output --exit-status '.["target"]')" || return $INVALID_TARGET
+        target="$(eval echo "$target")"
         { [[ -n "$target" ]] && [[ "${target:0:1}" == "/" ]] && [[ -e "$target" ]]; } || return $NOT_ABSOLUTE_PATH
-        link="$(echo "$symlink" | jq --tab --compact-output --exit-status '.["link"]')" || return $INVALID_SYMLINK
+        link="$(echo "$symlink" | jq --tab --raw-output --exit-status '.["link"]')" || return $INVALID_SYMLINK
+        link="$(eval echo "$link")"
         { [[ -n "$link" ]] && [[ "${link:0:1}" == "/" ]]; } || return $NOT_ABSOLUTE_PATH
-        force="$(echo "$symlink" | jq --tab --compact-output '.["target"]')" && [[ "$force" == "null" ]] && force="false"
+        force="$(echo "$symlink" | jq --tab --raw-output '.["force"] // false')"
 
         case "$action" in
             (create)
                 mkdir -p "$(dirname "$link")"
-                { [[ "$force" == "true" ]] && ln -sfn "$target" "$link" &>/dev/null || return "$INVALID_SYMLINK"; } || { ln -sn "$target" "$link" &>/dev/null || return "$INVALID_SYMLINK"; }
+                if [[ "$force" == "true" ]]; then
+                    ln -sfn "$target" "$link" &>/dev/null || return $INVALID_SYMLINK
+                else
+                    ln -sn "$target" "$link" &>/dev/null || return $INVALID_SYMLINK
+                fi
             ;;
             (delete)
-                { [[ -L "$link" ]] && unlink "$link" &>/dev/null; } || return $INVALID_SYMLINK then
+                { [[ -L "$link" ]] && unlink "$link" &>/dev/null; } || return $INVALID_SYMLINK
             ;;
         esac
     done

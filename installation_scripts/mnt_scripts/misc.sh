@@ -39,12 +39,12 @@ function enable_services () {
 }
 
 function populate_bash_files () {
-    ~/.bash_profile <<-'EOF'
+    cat > ~/.bash_profile <<-'EOF'
 if uwsm check may-start; then
 	exec uwsm start hyprland.desktop
 fi
 EOF
-    ~/.bashrc <<-'EOF'
+    cat > ~/.bashrc <<-'EOF'
 export MANPAGER="nvim -c 'Man!' -"
 export PATH=$PATH:~/lua-language-server/bin
 EOF

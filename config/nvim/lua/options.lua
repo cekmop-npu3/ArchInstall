@@ -16,3 +16,4 @@ vim.g.mapleader = " "
 vim.o.clipboard = "unnamedplus"
 vim.o.completeopt= "menu,menuone,popup,noinsert"
 vim.o.autowriteall = true
+vim.g.netrw_banner = 0

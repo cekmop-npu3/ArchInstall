@@ -2,7 +2,7 @@
 
 declare _RAN_DIRECTLY=1
 
-declare _script_name=$(basename "$0")
+declare _script_name=$(basename -- "$0")
 
 function _usage () {
     cat <<EOF

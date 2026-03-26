@@ -59,7 +59,7 @@ function update_mirrorlist () {
     reflector \
         --country Netherlands,Germany,France,Belgium \
         --protocol https \
-        --age 12 \
+        --age 24 \
         --sort rate \
         --latest 20 \
         --save "$path"
