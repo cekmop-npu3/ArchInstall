@@ -89,7 +89,7 @@ function add_user () {
     arch-chroot /mnt &>/dev/null <<-EOF
 useradd -m $username
 printf "%s:%s" "$username" "$password" | chpasswd
-usermod -aG wheel $username
+usermod -aG wheel,video,render,input $username
 echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/10-wheel
 chmod 0440 /etc/sudoers.d/10-wheel
 EOF

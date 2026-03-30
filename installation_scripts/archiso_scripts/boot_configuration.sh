@@ -57,13 +57,11 @@ function install_dependencies () {
 function resolve_crypted_partition () {
     crypt_path="$(findmnt -o SOURCE -n /mnt)"
     local crypt_list="$(lsblk -o NAME,TYPE -snl "$crypt_path")"
-    crypt_name="$(echo "$crypt_list" | grep -oP "\w+(?=\s+crypt)")"
     disk="/dev/$(echo "$crypt_list" | grep -oP "\w+(?=\s+disk)")"
     partition="$(lsblk -o PTTYPE --noheadings --nodeps "$disk")"
-    if [[ -n "$crypt_name" ]]; then
-        luks_uuid="$(blkid -s UUID -o value /dev/"$(echo "$crypt_list" | grep -oP "\w+(?=\s+part)")")"
-    fi
-    lvm="$(echo "$crypt_list" | grep -oP "\w+(?=\s+lvm)")"
+    lvm="$(echo "$crypt_list" | grep -oP "\w+(?=\s+lvm)")" || true
+    crypt_name="$(echo "$crypt_list" | grep -oP "\w+(?=\s+crypt)")" || return 0
+    luks_uuid="$(blkid -s UUID -o value /dev/"$(echo "$crypt_list" | grep -oP "\w+(?=\s+part)")")"
 }
 
 function generate_initramfs () {

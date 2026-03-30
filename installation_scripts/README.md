@@ -153,9 +153,7 @@ Config format (`JSON`):
     {
       "target": "/home/youruser/.dotfiles/alacritty.toml",
       "link": "/home/youruser/.config/alacritty/alacritty.toml",
-      "create_parent": true,
-      "force": true,
-      "missing_ok": false
+      "force": true
     }
   ]
 }
