@@ -38,10 +38,10 @@ If you pass `--luks -`, export password first:
 export PASSWORD='your_luks_password'
 ```
 
-### 2) Install base and desktop packages
+### 2) Update pacman mirrorlist and install packages
 
 ```bash
-./install_dependencies.sh
+./install_dependencies.sh --file packages.txt
 ```
 
 ### 3) Configure timezone, locale, hostname, vconsole
@@ -92,18 +92,24 @@ export PASSWORD='your_user_password'
 ./self_deploy.sh --username youruser
 ```
 
-## Post-Install (inside installed system)
+## Inside mounted system
 
 There are scripts in `mnt_scripts/` intended for post-install tasks:
 
 - `mnt_scripts/misc.sh`
 - `mnt_scripts/symlinks.sh`
 
+Change root into the mounted system and switch to your user:
+
+```bash
+arch-chroot /mnt
+su - youruser
+```
+
 Before running `mnt_scripts/*`, set [INSTALL_DIR](#INSTALL_DIR).
 
 ### 1) Miscelaneous tasks
 
-- Enable user/system services.
 - Set shell profile snippets.
 - Clone and build `lua-language-server`.
 
@@ -116,7 +122,7 @@ Run:
 ### 2) Create or delete symlinks
 
 Purpose:
-- Create or delete symlinks from a JSON config file parsed by `jq`.
+- Create or delete symlinks from a JSON config file.
 - Example config: `mnt_scripts/symlinks.example.json`
 
 Interactive:
