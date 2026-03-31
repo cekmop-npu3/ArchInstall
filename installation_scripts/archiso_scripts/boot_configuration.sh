@@ -62,7 +62,7 @@ function resolve_crypted_partition () {
     local partition="/dev/$(echo "$root_tree" | awk '$2=="part"{print $1}')"
     partition_style="$(lsblk -o PTTYPE --noheadings --nodeps "$disk")"
     lvm="$(echo "$root_tree" | awk '$2=="lvm"{print $1}')" || true
-    luks_uuid="$(blkid -s UUID -o value "/dev/$partition")" || return 0
+    luks_uuid="$(blkid -s UUID -o value "$partition")" || return 0
 }
 
 function configure_crypttab () {
@@ -105,7 +105,7 @@ function configure_grub () {
     arch-chroot /mnt <<< 'grub-mkconfig -o /boot/grub/grub.cfg'
     if [[ -n "${luks_uuid:-}" ]]; then
         arch-chroot /mnt <<-EOF
-sed -i 's|^[#[:space:]]*GRUB_CMDLINE_LINUX=.*$|GRUB_CMDLINE_LINUX="rd.luks.name=$luks_uuid=$crypt_name root=UUID=$root_uuid"|' /etc/default/grub
+sed -i 's|^[#[:space:]]*GRUB_CMDLINE_LINUX=.*$|GRUB_CMDLINE_LINUX="rd.luks.name=$luks_uuid=$root_name root=UUID=$root_uuid"|' /etc/default/grub
 sed -i 's/^#GRUB_ENABLE_CRYPTODISK=y$/GRUB_ENABLE_CRYPTODISK=y/' /etc/default/grub
 EOF
     fi
