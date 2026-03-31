@@ -26,7 +26,7 @@ function eval_script_options () {
 
     declare -A opt1 opt2
     create_option --long-option="help" --short-option="h" --callback=usage --early opt1
-    create_option --long-option="file" --short-option="f" --callback=set_file --required opt2
+    create_option --long-option="file" --short-option="f" --callback=set_file --required --argument="true" opt2
 
     declare -A usage1
     set_usage usage1 opt1 opt2
