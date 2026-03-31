@@ -1,11 +1,11 @@
 #!/usr/bin/bash
 
-#TODO: Parse the file to install from
-
 set -euo pipefail
 
 source "${INSTALL_DIR:-}/utils/utils.sh"
 source "${INSTALL_DIR:-}/utils/parse_options.sh"
+
+readonly NO_FILE=1
 
 function usage () {
     cat <<EOF
@@ -13,19 +13,23 @@ Usage:
  $script_name [options]
 
 Options:
+ -f, --file <file>          A file to parse dependencies from
  -h, --help                 Show this help
 EOF
     exit 0
 }
 
+function set_file () { file="${1:-}"; }
+
 function eval_script_options () {
     declare -a script_options=("$@")
 
-    declare -A opt1
-    create_option --long-option="help" --short-option="h" --callback=usage opt1
+    declare -A opt1 opt2
+    create_option --long-option="help" --short-option="h" --callback=usage --early opt1
+    create_option --long-option="file" --short-option="f" --callback=set_file --required opt2
 
     declare -A usage1
-    set_usage usage1 opt1
+    set_usage usage1 opt1 opt2
 
     declare -A response
     handle_usages response script_options usage1 || return $?
@@ -41,17 +45,10 @@ function check_filesystem () {
 }
 
 function install_packages () {
-    pacstrap -K /mnt base base-devel linux linux-firmware \
-        intel-ucode git openssh grub efibootmgr lvm2 cryptsetup
-
-    pacstrap -K /mnt \
-        man-db man-pages sudo neovim vim nano \
-        ninja clang rust go python python-pip nodejs yarn npm gdb make cmake pkg-config \
-        networkmanager network-manager-applet bluez bluez-utils blueman \
-        pipewire pipewire-pulse pipewire-alsa pipewire-jack wireplumber sof-firmware \
-        mesa mesa-utils vulkan-intel xorg-xwayland \
-        wayland wayland-protocols xdg-desktop-portal-hyprland xdg-desktop-portal-gtk xdg-utils uwsm libnewt \
-        hyprland alacritty hyprpaper copyq rofi hyprlock nautilus brightnessctl hyprshot
+    local string="$(sed 's/#.*$//' "$file")"
+    local -a packages
+    mapfile -t packages< <(echo "$string" | grep -oP "\S+")
+    pacstrap -K /mnt "${packages[@]}"
 }
 
 function update_mirrorlist () {
@@ -69,6 +66,7 @@ function main () {
     is_running_in_iso || return $?
 
     eval_script_options "$@"
+    [[ -e "${file:-}" ]] || return $NO_FILE
 
     check_filesystem || return $?
 
