@@ -31,6 +31,11 @@ function eval_script_options () {
     invoke_callbacks response
 }
 
+function enable_services () {
+    systemctl --user enable pipewire wireplumber
+    sudo bash -c 'systemctl enable NetworkManager; systemctl enable bluetooth; systemctl enable sshd'
+}
+
 function populate_bash_files () {
     cat >> ~/.bash_profile <<-'EOF'
 if uwsm check may-start; then
@@ -59,6 +64,7 @@ function main () {
 
     clone_repositories
     populate_bash_files
+    enable_services
 }
 
 main "$@"
