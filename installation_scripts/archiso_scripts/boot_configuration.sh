@@ -55,13 +55,30 @@ function install_dependencies () {
 }
 
 function resolve_crypted_partition () {
-    crypt_path="$(findmnt -o SOURCE -n /mnt)"
-    local crypt_list="$(lsblk -o NAME,TYPE -snl "$crypt_path")"
-    disk="/dev/$(echo "$crypt_list" | grep -oP "\w+(?=\s+disk)")"
-    partition="$(lsblk -o PTTYPE --noheadings --nodeps "$disk")"
-    lvm="$(echo "$crypt_list" | grep -oP "\w+(?=\s+lvm)")" || true
-    crypt_name="$(echo "$crypt_list" | grep -oP "\w+(?=\s+crypt)")" || return 0
-    luks_uuid="$(blkid -s UUID -o value /dev/"$(echo "$crypt_list" | grep -oP "\w+(?=\s+part)")")"
+    IFS=' ' read -r root_path root_uuid <<< "$(findmnt -o SOURCE,UUID -n /mnt)"
+    root_name="$(basename -- "$root_path")"
+    local root_tree="$(lsblk -o NAME,TYPE -nr "$root_path")"
+    disk="/dev/$(echo "$root_tree" | awk '$2=="disk"{print $1}')"
+    local partition="/dev/$(echo "$root_tree" | awk '$2=="part"{print $1}')"
+    partition_style="$(lsblk -o PTTYPE --noheadings --nodeps "$disk")"
+    lvm="$(echo "$root_tree" | awk '$2=="lvm"{print $1}')" || true
+    luks_uuid="$(blkid -s UUID -o value "/dev/$partition")" || return 0
+}
+
+function configure_crypttab () {
+    [[ -n "${luks_uuid:-}" ]] || return 0
+
+    local mapper_name
+    local crypt_device
+    local crypt_uuid
+    while read -r mapper_name; do
+        [[ "${mapper_name:-}" != "$root_name" ]] || continue
+
+        crypt_device="$(cryptsetup status "$mapper_name" | awk '/device:/ {print $2}')"
+        crypt_uuid="$(blkid -s UUID -o value "$crypt_device")"
+
+        echo "$mapper_name UUID=$crypt_uuid none luks" >> /mnt/etc/crypttab
+    done < <(lsblk -nr -o NAME,TYPE | awk '$2=="crypt"{print $1}')
 }
 
 function generate_initramfs () {
@@ -80,7 +97,7 @@ EOF
 }
 
 function configure_grub () {
-    if [[ "$partition" == "gpt" ]]; then
+    if [[ "$partition_style" == "gpt" ]]; then
         arch-chroot /mnt <<< 'grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB'
     else
         arch-chroot /mnt <<< "grub-install --target=i386-pc $disk"
@@ -88,7 +105,7 @@ function configure_grub () {
     arch-chroot /mnt <<< 'grub-mkconfig -o /boot/grub/grub.cfg'
     if [[ -n "${luks_uuid:-}" ]]; then
         arch-chroot /mnt <<-EOF
-sed -i 's|^GRUB_CMDLINE_LINUX=""$|GRUB_CMDLINE_LINUX="rd.luks.name=$luks_uuid=$crypt_name root=$crypt_path"|' /etc/default/grub
+sed -i 's|^[#[:space:]]*GRUB_CMDLINE_LINUX=.*$|GRUB_CMDLINE_LINUX="rd.luks.name=$luks_uuid=$crypt_name root=UUID=$root_uuid"|' /etc/default/grub
 sed -i 's/^#GRUB_ENABLE_CRYPTODISK=y$/GRUB_ENABLE_CRYPTODISK=y/' /etc/default/grub
 EOF
     fi
@@ -106,7 +123,8 @@ function main () {
     toggle_output descriptor_array
 
     genfstab -U /mnt > /mnt/etc/fstab
-    resolve_crypted_partition 
+    resolve_crypted_partition
+    configure_crypttab
     install_dependencies
     generate_initramfs
     configure_grub
@@ -115,4 +133,3 @@ function main () {
 }
 
 main "$@"
-
