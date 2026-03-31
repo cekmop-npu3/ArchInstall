@@ -56,9 +56,9 @@ function install_dependencies () {
 
 function resolve_crypted_partition () {
     IFS=' ' read -r root_path root_uuid <<< "$(findmnt -o SOURCE,UUID -n /mnt)"
-    root_name="$(basename -- "$root_path")"
-    local root_tree="$(lsblk -o NAME,TYPE -nr "$root_path")"
+    local root_tree="$(lsblk -o NAME,TYPE -nsr "$root_path")"
     disk="/dev/$(echo "$root_tree" | awk '$2=="disk"{print $1}')"
+    root_name="$(echo "$root_tree" | awk '$2=="crypt"{print $1}')"
     local partition="/dev/$(echo "$root_tree" | awk '$2=="part"{print $1}')"
     partition_style="$(lsblk -o PTTYPE --noheadings --nodeps "$disk")"
     lvm="$(echo "$root_tree" | awk '$2=="lvm"{print $1}')" || true
