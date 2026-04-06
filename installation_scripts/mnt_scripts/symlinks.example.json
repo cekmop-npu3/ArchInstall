@@ -19,6 +19,21 @@
             "target": "~/ArchInstall/config/nvim",
             "link": "~/.config/nvim",
             "force": true
+        },
+        {
+            "target": "~/ArchInstall/config/waybar",
+            "link": "~/.config/waybar",
+            "force": true
+        },
+        {
+            "target": "~/ArchInstall/config/rofi",
+            "link": "~/.config/rofi",
+            "force": true
+        },
+        {
+            "target": "~/ArchInstall/config/rofi/themes",
+            "link": "~/.local/share/rofi/themes",
+            "force": true
         }
     ]
 }

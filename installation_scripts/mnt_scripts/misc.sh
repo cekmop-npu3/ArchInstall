@@ -50,6 +50,13 @@ function clone_repositories () {
         cd ~/lua-language-server
         ./make.sh
     )
+
+    git clone --branch release-0.12 https://github.com/neovim/neovim.git ~/neovim
+    (
+        cd ~/neovim
+        make CMAKE_BUILD_TYPE=RelWithDebInfo
+        sudo make install
+    )
 }
 
 function main () {

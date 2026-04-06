@@ -1,0 +1,16 @@
+{
+    "pulseaudio": {
+        "format": "{volume}% {icon}",
+        "format-muted": "{volume}% ",
+        "format-icons": {
+            "default": [ "󰕿", "󰖀", "󰕾" ],
+			"headphone": "󰋋",
+			"headphone-muted": "󰟎",
+			"headset": "󰋎",
+			"headset-muted": "󰋐"
+        },
+        "on-click": "pavucontrol",
+        "on-click-right": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+        "tooltip": false
+    }
+}

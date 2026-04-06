@@ -1,0 +1,7 @@
+{
+    "custom/poweroff": {
+        "format": "󰤄",
+        "on-click": "~/ArchInstall/config/waybar/scripts/poweroff.sh",
+        "tooltip": false
+    }
+}

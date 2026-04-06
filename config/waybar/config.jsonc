@@ -1,0 +1,29 @@
+{
+    "layer": "bottom",
+    "margin": "10px 10px 0 10px",
+
+    "include": [
+        "~/ArchInstall/config/waybar/modules/clock.jsonc",
+        "~/ArchInstall/config/waybar/modules/pulseaudio.jsonc",
+        "~/ArchInstall/config/waybar/modules/battery.jsonc",
+        "~/ArchInstall/config/waybar/modules/network.jsonc",
+        "~/ArchInstall/config/waybar/modules/bluetooth.jsonc",
+        "~/ArchInstall/config/waybar/modules/workspaces.jsonc",
+        "~/ArchInstall/config/waybar/modules/poweroff.jsonc"
+    ],
+    "modules-left": [
+        "hyprland/workspaces",
+        "hyprland/language"
+    ],
+    "modules-center": [
+        "bluetooth",
+        "clock",
+        "network"
+    ],
+    "modules-right": [
+        "pulseaudio",
+        "pulseaudio/slider",
+        "battery",
+        "custom/poweroff"
+    ]
+}

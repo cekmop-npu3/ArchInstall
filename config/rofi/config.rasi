@@ -1,0 +1,25 @@
+configuration {
+    modes: [ drun ];
+    show-icons: true;
+}
+
+@theme "rounded-pink-dark"
+
+window {
+    font: "JetBrainsMono Nerd Font";
+}
+
+element {
+    orientation: horizontal;
+    children: [ element-icon, element-text ];
+    spacing: 15px;
+}
+
+element-icon {
+    size: 2.5em;
+}
+
+element-text {
+    vertical-align: 0.5;
+}
+

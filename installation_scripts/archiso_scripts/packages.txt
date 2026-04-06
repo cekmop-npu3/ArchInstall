@@ -1,11 +1,11 @@
 # Base system and core packages
-base base-devel linux linux-firmware
+base base-devel linux linux-headers linux-lts linux-lts-headers linux-firmware
 
 # Intel CPU microcode and essential tools
 intel-ucode git openssh grub efibootmgr lvm2 cryptsetup
 
 # Documentation, editors, and development tools
-man-db man-pages sudo neovim vim nano ninja clang rust go python python-pip nodejs yarn npm gdb make cmake pkg-config
+man-db man-pages sudo vim nano ninja clang rust go python python-pip nodejs yarn npm gdb make cmake pkg-config
 
 # Networking and Bluetooth
 networkmanager network-manager-applet bluez bluez-utils blueman
@@ -14,4 +14,4 @@ networkmanager network-manager-applet bluez bluez-utils blueman
 pipewire pipewire-pulse pipewire-alsa pipewire-jack wireplumber sof-firmware mesa mesa-utils vulkan-intel
 
 # Wayland, Hyprland, and related utilities
-xorg-xwayland wayland wayland-protocols xdg-desktop-portal-hyprland xdg-desktop-portal-gtk xdg-utils uwsm libnewt hyprland alacritty hyprpaper copyq rofi hyprlock nautilus brightnessctl hyprshot
+xorg-xwayland wayland wayland-protocols xdg-desktop-portal-hyprland xdg-desktop-portal-gtk xdg-utils uwsm libnewt hyprland alacritty hyprpaper copyq rofi hyprlock nautilus brightnessctl hyprshot ttf-jetbrains-mono-nerd hyprpicker pavucontrol

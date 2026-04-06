@@ -164,3 +164,13 @@ Config format (`JSON`):
   ]
 }
 ```
+
+## After installation (Inside installed system)
+
+After a successful installation you may want to enable some of the following services:
+
+```bash
+systemctl --user enable pipewire wireplumber --now
+sudo systemctl enable NetworkManager bluetooth --now
+```
+

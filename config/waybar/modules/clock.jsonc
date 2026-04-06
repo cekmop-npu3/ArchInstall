@@ -1,0 +1,21 @@
+{
+    "clock": {
+        "locale": "ru_RU.UTF-8",
+        "format": "{:%H:%M %A}",
+        "tooltip-format": "{calendar}",
+        "calendar": {
+            "mode": "month",
+            "mode-mon-col": 3,
+            "on-scroll": 1,
+            "format": {
+                "months": "<span color='#957fb8'><b>{}</b></span>",
+                "weekdays": "<span color='#d27e99'><b>{}</b></span>",
+                "today": "<span color='#c5211e'><b>{}</b></span>"
+            }
+        },
+        "actions": {
+            "on-click-right": "mode",
+            "on-click": "mode"
+        }
+    }
+}
