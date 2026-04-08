@@ -34,6 +34,21 @@
             "target": "~/ArchInstall/config/rofi/themes",
             "link": "~/.local/share/rofi/themes",
             "force": true
+        },
+        {
+            "target": "~/ArchInstall/config/btop",
+            "link": "~/.config/btop",
+            "force": true
+        },
+        {
+            "target": "~/ArchInstall/config/gtk-3.0",
+            "link": "~/.config/gtk-3.0",
+            "force": true
+        },
+        {
+            "target": "~/ArchInstall/config/gtk-4.0",
+            "link": "~/.config/gtk-4.0",
+            "force": true
         }
     ]
 }

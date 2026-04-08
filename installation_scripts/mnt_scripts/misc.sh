@@ -38,6 +38,7 @@ if uwsm check may-start; then
 fi
 EOF
     cat >> ~/.bashrc <<-'EOF'
+alias update-mirrorlist="reflector --country Netherlands,Germany,France,Belgium --protocol https --age 24 --sort rate --latest 20 --save /etc/pacman.d/mirrorlist"
 export MANPAGER="nvim -c 'Man!' -"
 export PATH=$PATH:~/lua-language-server/bin
 EOF
@@ -56,6 +57,12 @@ function clone_repositories () {
         cd ~/neovim
         make CMAKE_BUILD_TYPE=RelWithDebInfo
         sudo make install
+    )
+
+    git clone https://aur.archlinux.org/yay.git ~/yay
+    (
+        cd ~/yay
+        makepkg --noconfirm -si
     )
 }
 

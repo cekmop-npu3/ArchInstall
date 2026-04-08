@@ -60,9 +60,11 @@ function resolve_crypted_partition () {
     disk="/dev/$(echo "$root_tree" | awk '$2=="disk"{print $1}')"
     root_name="$(echo "$root_tree" | awk '$2=="crypt"{print $1}')"
     local partition="/dev/$(echo "$root_tree" | awk '$2=="part"{print $1}')"
+    if cryptsetup isLuks "$partition"; then
+        luks_uuid="$(cryptsetup luksUUID "$partition")"
+    fi
     partition_style="$(lsblk -o PTTYPE --noheadings --nodeps "$disk")"
     lvm="$(echo "$root_tree" | awk '$2=="lvm"{print $1}')" || true
-    luks_uuid="$(blkid -s UUID -o value "$partition")" || return 0
 }
 
 function configure_crypttab () {
@@ -83,12 +85,9 @@ function configure_crypttab () {
 
 function generate_initramfs () {
     local hooks="base systemd autodetect microcode modconf kms keyboard sd-vconsole block "
-    if [[ -n "${luks_uuid:-}" ]]; then
-        hooks+="sd-encrypt "
-    fi
-    if [[ -n "${lvm:-}" ]]; then
-        hooks+="lvm2 "
-    fi
+    [[ -n "${luks_uuid:-}" ]] && hooks+="sd-encrypt "
+    [[ -n "${lvm:-}" ]] && hooks+="lvm2 "
+
     hooks+="filesystems fsck"
     arch-chroot /mnt <<-EOF
     sed -i 's/^[[:space:]]*HOOKS.*/HOOKS=($hooks)/' /etc/mkinitcpio.conf
@@ -105,8 +104,7 @@ function configure_grub () {
     arch-chroot /mnt <<< 'grub-mkconfig -o /boot/grub/grub.cfg'
     if [[ -n "${luks_uuid:-}" ]]; then
         arch-chroot /mnt <<-EOF
-sed -i 's|^[#[:space:]]*GRUB_CMDLINE_LINUX=.*$|GRUB_CMDLINE_LINUX="rd.luks.name=$luks_uuid=$root_name root=UUID=$root_uuid"|' /etc/default/grub
-sed -i 's/^#GRUB_ENABLE_CRYPTODISK=y$/GRUB_ENABLE_CRYPTODISK=y/' /etc/default/grub
+sed -i 's|^[#[:space:]]*GRUB_CMDLINE_LINUX=.*$|GRUB_CMDLINE_LINUX="rd.luks.name=$luks_uuid=$root_name root=UUID=$root_uuid $(lsblk --nvme "$disk" &>/dev/null && echo "nvme_core.default_ps_max_latency_us=0")"|' /etc/default/grub
 EOF
     fi
     arch-chroot /mnt <<< 'grub-mkconfig -o /boot/grub/grub.cfg'

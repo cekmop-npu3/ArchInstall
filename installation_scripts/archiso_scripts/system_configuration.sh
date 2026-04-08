@@ -75,7 +75,7 @@ EOF
 
 function generate_locales () {
     arch-chroot /mnt &>/dev/null <<-EOF
-echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+echo -e "en_US.UTF-8 UTF-8\nru_RU.UTF-8 UTF-8" > /etc/locale.gen
 locale-gen
 echo "LANG=en_US.UTF-8" > /etc/locale.conf
 EOF

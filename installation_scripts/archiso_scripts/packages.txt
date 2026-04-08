@@ -14,4 +14,4 @@ networkmanager network-manager-applet bluez bluez-utils blueman
 pipewire pipewire-pulse pipewire-alsa pipewire-jack wireplumber sof-firmware mesa mesa-utils vulkan-intel
 
 # Wayland, Hyprland, and related utilities
-xorg-xwayland wayland wayland-protocols xdg-desktop-portal-hyprland xdg-desktop-portal-gtk xdg-utils uwsm libnewt hyprland alacritty hyprpaper copyq rofi hyprlock nautilus brightnessctl hyprshot ttf-jetbrains-mono-nerd hyprpicker pavucontrol
+xorg-xwayland wayland wayland-protocols xdg-desktop-portal-hyprland xdg-desktop-portal-gtk xdg-utils uwsm libnewt hyprland alacritty hyprpaper copyq rofi hyprlock nautilus brightnessctl hyprshot ttf-jetbrains-mono-nerd hyprpicker pavucontrol waybar btop
