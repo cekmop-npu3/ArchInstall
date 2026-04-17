@@ -1,10 +1,12 @@
 #!/usr/bin/bash
 
-source "${INSTALL_DIR:-}/utils/utils.sh"
-source "${INSTALL_DIR:-}/utils/parse_options.sh"
+source "${SCRIPTS_DIR:-}/utils/utils.sh"
+source "${SCRIPTS_DIR:-}/utils/parse_options.sh"
 
-declare -r INVALID_TIMEZONE=1
-declare -r INVALID_HOSTNAME=2
+readonly INVALID_TIMEZONE=1
+readonly INVALID_HOSTNAME=2
+readonly INVALID_OPTIONS=3
+readonly WRONG_ENV=4
 
 declare -i is_interactive=1
 
@@ -19,6 +21,12 @@ Options:
  -H, --hostname <hostname>
 
  -h, --help
+
+Error codes:
+ INVALID_TIMEZONE=1                Invalid timezone was specified, see timedatectl list-timezones
+ INVALID_HOSTNAME=2
+ INVALID_OPTIONS=3                 Invalid options passed to $scripts_name
+ WRONG_ENV=4                       Script must be ran in live environment
 EOF
     exit 0
 }
@@ -31,8 +39,8 @@ function eval_script_options () {
     declare -a script_options=("$@")
 
     declare -A opt1 opt2 opt3 opt4
-    create_option --long-option="timezone" --short-option="t" --argument="true" --callback=_set_timezone opt1
-    create_option --long-option="hostname" --short-option="H" --argument="true" --callback=_set_hostname opt2
+    create_option --long-option="timezone" --short-option="t" --argument="true" --callback=_set_timezone --required opt1
+    create_option --long-option="hostname" --short-option="H" --argument="true" --callback=_set_hostname --required opt2
     create_option --long-option="help" --short-option="h" --early --callback=usage opt3
     create_option --long-option="interactive" --short-option="i" --callback=toggle_interactive opt4
 
@@ -41,7 +49,7 @@ function eval_script_options () {
     set_usage usage2 opt3 opt4
 
     declare -A response
-    handle_usages response script_options usage1 usage2 || return $?
+    handle_usages response script_options usage1 usage2 || echo "Invalid options passed to $scripts_name" && return $INVALID_OPTIONS
 
     invoke_callbacks response
 }
@@ -56,6 +64,7 @@ function input_hostname () {
 
 function check_timezone () {
     if [[ -z "$(timedatectl list-timezones | grep -oP "^$timezone$")" ]]; then
+        echo "Invalid timezone was specified, see timedatectl list-timezones"
         return $INVALID_TIMEZONE
     fi
 }
@@ -97,7 +106,7 @@ function populate_vconsole () {
 }
 
 function main () {
-    is_running_in_iso || return $?
+    is_running_in_iso || echo "$script_name must be running in live environment" && return $WRONG_ENV
 
     eval_script_options "$@" || return $?
 

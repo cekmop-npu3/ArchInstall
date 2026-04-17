@@ -2,8 +2,8 @@
 
 set -euo pipefail
 
-source "${INSTALL_DIR:-}/utils/utils.sh"
-source "${INSTALL_DIR:-}/utils/parse_options.sh"
+source "${SCRIPTS_DIR:-}/utils/utils.sh"
+source "${SCRIPTS_DIR:-}/utils/parse_options.sh"
 
 function usage () {
     cat <<EOF
@@ -37,8 +37,8 @@ if uwsm check may-start; then
     exec uwsm start hyprland.desktop
 fi
 EOF
+    cat >> ~/.bashrc <<< "alias update-mirrorlist='$SCRIPTS_DIR/system/mirrorlist.sh'"
     cat >> ~/.bashrc <<-'EOF'
-alias update-mirrorlist="reflector --country Netherlands,Germany,France,Belgium --protocol https --age 24 --sort rate --latest 20 --save /etc/pacman.d/mirrorlist"
 export MANPAGER="nvim -c 'Man!' -"
 export PATH=$PATH:~/lua-language-server/bin
 EOF
@@ -66,6 +66,11 @@ function clone_repositories () {
     )
 }
 
+function enable_services () {
+    systemctl --user enable pipewire wireplumber --now
+    sudo systemctl enable NetworkManager bluetooth --now
+}
+
 function main () {
     ! is_running_in_iso || return $?
 
@@ -73,6 +78,7 @@ function main () {
 
     clone_repositories
     populate_bash_files
+    enable_services
 }
 
 main "$@"

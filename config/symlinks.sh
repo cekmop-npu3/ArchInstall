@@ -2,8 +2,8 @@
 
 set -euo pipefail
 
-source "${INSTALL_DIR:-}/utils/utils.sh"
-source "${INSTALL_DIR:-}/utils/parse_options.sh"
+source "${SCRIPTS_DIR:-}/utils/utils.sh"
+source "${SCRIPTS_DIR:-}/utils/parse_options.sh"
 
 readonly INVALID_CONFIG_PATH=1
 readonly INVALID_ACTION=2

@@ -2,10 +2,13 @@
 
 set -euo pipefail
 
-source "${INSTALL_DIR:-}/utils/utils.sh"
-source "${INSTALL_DIR:-}/utils/parse_options.sh"
+source "${SCRIPTS_DIR:-}/utils/utils.sh"
+source "${SCRIPTS_DIR:-}/utils/parse_options.sh"
+source "${SCRIPTS_DIR:-}/system/mirrorlist.sh"
 
 readonly NO_FILE=1
+readonly INVALID_OPTIONS=2
+readonly NO_FILESYSTEM=3
 
 function usage () {
     cat <<EOF
@@ -15,6 +18,11 @@ Usage:
 Options:
  -f, --file <file>          A file to parse dependencies from
  -h, --help                 Show this help
+
+Error codes:
+ NO_FILE=1                  File to install dependencies from is not found
+ INVALID_OPTIONS=2          Invalid options passed to $scripts_name
+ NO_FILESYSTEM=3            Filesystem is not mounted or $script_name is not running in live environment
 EOF
     exit 0
 }
@@ -32,14 +40,14 @@ function eval_script_options () {
     set_usage usage1 opt1 opt2
 
     declare -A response
-    handle_usages response script_options usage1 || return $?
+    handle_usages response script_options usage1 || echo "Invalid options passed to $script_name" && return $INVALID_OPTIONS
 
     invoke_callbacks response
 }
 
 function check_filesystem () {
-    if ! findmnt -R /mnt &>/dev/null; then
-        echo "Filesystem is not mounted"
+    if !is_running_in_iso || ! findmnt -R /mnt &>/dev/null; then
+        echo "Filesystem is not mounted or doesn't exist under /mnt"
         return $NO_FILESYSTEM
     fi
 }
@@ -63,16 +71,13 @@ function update_mirrorlist () {
 }
 
 function main () {
-    is_running_in_iso || return $?
-
-    eval_script_options "$@"
-    [[ -e "${file:-}" ]] || return $NO_FILE
-
     check_filesystem || return $?
 
-    update_mirrorlist "/etc/pacman.d/mirrorlist"
+    eval_script_options "$@" || return $?
+    [[ -e "${file:-}" ]] || echo "File to parse dependencies not found" && return $NO_FILE
+
+    update_mirrorlist
     install_packages
-    update_mirrorlist "/mnt/etc/pacman.d/mirrorlist"
 }
 
 main "$@"

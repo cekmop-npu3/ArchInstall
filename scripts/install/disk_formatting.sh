@@ -2,23 +2,23 @@
 
 set -euo pipefail
 
-source "${INSTALL_DIR:-}/utils/parse_options.sh"
-source "${INSTALL_DIR:-}/utils/utils.sh"
+source "${SCRIPTS_DIR:-}/utils/parse_options.sh"
+source "${SCRIPTS_DIR:-}/utils/utils.sh"
 
 readonly INSUFFICIENT_DISK_SIZE=1
 readonly INVALID_PARTITION=2
 readonly INVALID_DISK_NAME=3
 readonly INVALID_UEFI=4
-readonly INSUFFICIENT_ROOT_SIZE=6
-readonly INVALID_NUMBER=7
-readonly INVALID_PASSWORD=8
+readonly INSUFFICIENT_ROOT_SIZE=5
+readonly INVALID_NUMBER=6
+readonly INVALID_PASSWORD=7
+readonly INVALID_OPTIONS=8
 
 readonly default_partition_table="GPT"
 readonly volume_group="vg"
 declare -ar partitions=( "root" "home" "swap" )
 declare -ar luks_partitions=( "cryptroot" "crypthome" "cryptswap" "cryptlvm" )
 
-# Size in GiB
 declare -ir min_root_size=64
 declare -ir min_boot_size=1
 
@@ -45,9 +45,10 @@ Exit codes:
  INVALID_PARTITION=2                          Must be either "GPT" or "MBR"
  INVALID_DISK_NAME=3                          Disk name is invalid or not specified
  INVALID_UEFI=4                               UEFI is not detected
- INSUFFICIENT_ROOT_SIZE=6                     Root size must be at least $min_root_size GiB
- INVALID_NUMBER=7                             Nan was passed as a parameter
- INVALID_PASSWORD=8                           Password is empty or passwords don't match
+ INSUFFICIENT_ROOT_SIZE=5                     Root size must be at least $min_root_size GiB
+ INVALID_NUMBER=6                             Nan was passed as a parameter
+ INVALID_PASSWORD=7                           Password is empty or passwords don't match
+ INVALID_OPTIONS=8                            Invalid options passed to $scripts_name
 EOF
     exit 0
 }
@@ -79,7 +80,7 @@ function eval_script_options () {
     set_usage usage2 opt7 opt8
 
     declare -A response
-    handle_usages response script_options usage1 usage2 || return $?
+    handle_usages response script_options usage1 usage2 || echo "Invalid options passed to $script_name" && return $INVALID_OPTIONS
 
     invoke_callbacks response
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-declare _RAN_DIRECTLY=1
+declare _RAN_DIRECTLY=100
 
 declare _script_name=$(basename -- "$0")
 
@@ -10,7 +10,7 @@ Usage:
  source ./$_script_name
 
 Exit codes:
- $_script_name returns 1 if it's ran directly. Only intended to be sourced
+ $_script_name returns $_RAN_DIRECTLY if it's ran directly. Only intended to be sourced
 EOF
 }
 

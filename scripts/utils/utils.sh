@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-source "${INSTALL_DIR:-}/utils/make_sourced.sh"
+source "${SCRIPTS_DIR:-}/utils/make_sourced.sh"
 
 readonly NOT_IN_ISO=100
 readonly INVALID_FUNCTION=101

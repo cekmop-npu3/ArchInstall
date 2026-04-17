@@ -1,13 +1,13 @@
 #!/usr/bin/bash
 
 set -euo pipefail
-# TODO: password-related bug
 
-source "${INSTALL_DIR:-}/utils/utils.sh"
-source "${INSTALL_DIR:-}/utils/parse_options.sh"
+source "${SCRIPTS_DIR:-}/utils/utils.sh"
+source "${SCRIPTS_DIR:-}/utils/parse_options.sh"
 
 readonly INVALID_USERNAME=1
 readonly INVALID_PASSWORD=2
+readonly INVALID_OPTIONS=3
 
 declare -i is_interactive=1
 
@@ -18,7 +18,7 @@ Usage:
  $script_name [options]
 
 Options:
- -u, --username <username>                Username to use as login. Default is root
+ -u, --username <username>                Username to use as login
  -p, --password <pass>                    If the password given is "-", reads from PASSWORD env variable
 
  -h, --help                               Display this help
@@ -26,6 +26,7 @@ Options:
 Exit codes:
  INVALID_USERNAME=1    
  INVALID_PASSWORD=2                       Password is empty or passwords don't match
+ INVALID_OPTIONS=3                        Invalid options passed to $scripts_name
 EOF
     exit 0
 }
@@ -38,8 +39,8 @@ function eval_script_options () {
     declare -a script_options=("$@")
 
     declare -A opt1 opt2 opt3 opt4
-    create_option --long-option="username" --short-option="u" --argument="true" --callback=set_username opt1
-    create_option --long-option="password" --short-option="p" --argument="true" --callback=set_password opt2
+    create_option --long-option="username" --short-option="u" --argument="true" --callback=set_username --required opt1
+    create_option --long-option="password" --short-option="p" --argument="true" --callback=set_password --required opt2
     create_option --long-option="help" --short-option="h" --early --callback=usage opt3
     create_option --long-option="interactive" --short-option="i" --early --callback=toggle_interactive opt4
 
@@ -48,7 +49,7 @@ function eval_script_options () {
     set_usage usage2 opt3 opt4
 
     declare -A response
-    handle_usages response script_options usage1 usage2 || return $?
+    handle_usages response script_options usage1 usage2 || echo "Invalid options passed to $scripts_name" && return $INVALID_OPTIONS
 
     invoke_callbacks response
 }
@@ -65,9 +66,7 @@ function input_password () {
 }
 
 function check_username () {
-    if [[ -z "$username" ]]; then
-        username="root"
-    elif [[ -z "$(echo "$username" | grep -oP "^[a-zA-Z_][a-zA-Z0-9_-]{0,30}$")" ]]; then
+    if [[ -z "$(echo "${username:-}" | grep -oP "^[a-zA-Z_][a-zA-Z0-9_-]{0,30}$")" ]]; then
         return $INVALID_USERNAME
     fi
 }
@@ -86,18 +85,20 @@ function check_password () {
 }
 
 function add_user () {
-    arch-chroot /mnt &>/dev/null <<-EOF
+    commands="
 useradd -m $username
-printf "%s:%s" "$username" "$password" | chpasswd
+printf \"%s:%s\" $username $password | chpasswd
 usermod -aG wheel,video,render,input $username
-echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/10-wheel
+echo \"%wheel ALL=(ALL:ALL) ALL\" > /etc/sudoers.d/10-wheel
 chmod 0440 /etc/sudoers.d/10-wheel
-EOF
+"
+    if is_running_is_iso; then
+        return arch-chroot /mnt &>/dev/null <<< "$commands"
+    fi
+    exec "$commands"
 }
 
 function main () {
-    is_running_in_iso || return $?
-
     eval_script_options "$@" || return $?
 
     verify $is_interactive input_username check_username || return $?

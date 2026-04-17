@@ -2,8 +2,8 @@
 
 set -euo pipefail
 
-source "${INSTALL_DIR:-}/utils/parse_options.sh"
-source "${INSTALL_DIR:-}/utils/utils.sh"
+source "${SCRIPTS_DIR:-}/utils/parse_options.sh"
+source "${SCRIPTS_DIR:-}/utils/utils.sh"
 
 readonly NO_FILESYSTEM=1
 
@@ -16,7 +16,7 @@ Options:
  -h, --help                 Show this help
 
 Error codes:
- NO_FILESYSTEM=1            Filesystem is not mounted
+ NO_FILESYSTEM=1            Filesystem is not mounted or $script_name is not running in live environment
 EOF
     exit 0
 }
@@ -37,8 +37,8 @@ function eval_script_options () {
 }
 
 function check_filesystem () {
-    if ! findmnt -R /mnt &>/dev/null; then
-        echo "Filesystem is not mounted"
+    if ! is_running_in_iso || ! findmnt -R /mnt &>/dev/null; then
+        echo "Filesystem is not mounted or doesn't exist under /mnt"
         return $NO_FILESYSTEM
     fi
 }
@@ -68,7 +68,7 @@ function resolve_crypted_partition () {
 }
 
 function configure_crypttab () {
-    [[ -n "${luks_uuid:-}" ]] || return 0
+    ( [[ -n "${luks_uuid:-}" ]] && [[ -z "${lvm:-}" ]]; ) || return 0
 
     local mapper_name
     local crypt_device
@@ -102,16 +102,20 @@ function configure_grub () {
         arch-chroot /mnt <<< "grub-install --target=i386-pc $disk"
     fi
     arch-chroot /mnt <<< 'grub-mkconfig -o /boot/grub/grub.cfg'
+
+    arch-chroot /mnt <<-EOF
+sed -i 's|^[#[:space:]]*GRUB_CMDLINE_LINUX_DEFAULT=.*$|GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet pcie_aspm=off $(lsblk --nvme "$disk" &>/dev/null && echo "nvme_core.default_ps_max_latency_us=0")"|'
+EOF
+
     if [[ -n "${luks_uuid:-}" ]]; then
         arch-chroot /mnt <<-EOF
-sed -i 's|^[#[:space:]]*GRUB_CMDLINE_LINUX=.*$|GRUB_CMDLINE_LINUX="rd.luks.name=$luks_uuid=$root_name root=UUID=$root_uuid $(lsblk --nvme "$disk" &>/dev/null && echo "nvme_core.default_ps_max_latency_us=0")"|' /etc/default/grub
+sed -i 's|^[#[:space:]]*GRUB_CMDLINE_LINUX=.*$|GRUB_CMDLINE_LINUX="rd.luks.name=$luks_uuid=$root_name root=UUID=$root_uuid"|' /etc/default/grub
 EOF
     fi
     arch-chroot /mnt <<< 'grub-mkconfig -o /boot/grub/grub.cfg'
 }
 
 function main () {
-    is_running_in_iso || return $?
     check_filesystem || return $?
 
     eval_script_options "$@" || return $?
