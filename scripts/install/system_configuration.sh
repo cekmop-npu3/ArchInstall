@@ -31,6 +31,8 @@ EOF
     exit 0
 }
 
+# TODO: Add IgnorePkg = linux-lts linux-lts-headers in /etc/pacman.conf
+
 function _set_timezone () { timezone="${1:-}"; }
 function _set_hostname () { hostname="${1:-}"; }
 function toggle_interactive () { is_interactive=0; }

@@ -49,6 +49,16 @@
             "target": "~/ArchInstall/config/gtk-4.0",
             "link": "~/.config/gtk-4.0",
             "force": true
+        },
+        {
+            "target": "~/ArchInstall/config/bashrc",
+            "link": "~/.bashrc",
+            "force": true
+        },
+        {
+            "target": "~/ArchInstall/config/bash_profile",
+            "link": "~/.bash_profile",
+            "force": true
         }
     ]
 }

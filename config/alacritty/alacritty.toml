@@ -5,6 +5,9 @@ opacity = 0.9
 normal = { family = "JetBrainsMono Nerd Font", style = "Regular" }
 size = 13
 [keyboard]
-bindings = [{key = "Space", mods = "Shift", action = "ToggleViMode"}, {key = "Escape", mode = "Vi", action = "ToggleViMode"}]
+bindings = [
+    { key = "Space", mods = "Control|Shift", action = "ToggleViMode" },
+    { key = "Escape", mode = "Vi", action = "ToggleViMode" }
+]
 [terminal]
 shell = "/usr/bin/bash"
