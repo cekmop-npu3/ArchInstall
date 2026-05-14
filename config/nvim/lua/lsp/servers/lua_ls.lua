@@ -10,7 +10,7 @@ function M.setup()
             Lua = {
                 completion = {
                     enable = true,
-                    callSnippet = "Both",
+                    callSnippet = "Disable",
                     keywordSnippet = "Replace",
                     showWord = "Disable",
                     workspaceWord = false,

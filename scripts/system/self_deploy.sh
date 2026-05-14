@@ -1,13 +1,14 @@
 #!/usr/bin/bash
 
+: "${ROOT_DIR:?ROOT_DIR is not set. Source setup.sh first}"
 set -euo pipefail
 
-source "${SCRIPTS_DIR:-}/utils/utils.sh"
-source "${SCRIPTS_DIR:-}/utils/parse_options.sh"
+source "$ROOT_DIR/scripts/utils/utils.sh"
+source "$ROOT_DIR/scripts/utils/parse_options.sh"
 
 readonly NO_FILESYSTEM=1
 readonly INVALID_USERNAME=2
-readonly INVALID_OPTIONS=3
+readonly SELFDEPLOY_INVALID_OPTIONS=3
 
 declare -i is_interactive=1
 
@@ -24,8 +25,8 @@ Options:
 
 Exit codes:
  NO_FILESYSTEM=1                          Filesystem is not mounted or $script_name is not running in live environment
- INVALID_USERNAME=2                       Provided username doesn't exist. See $SCRIPTS_DIR/system/add_user.sh
- INVALID_OPTIONS=3                        Invalid options passed to $scripts_name
+ INVALID_USERNAME=2                       Provided username doesn't exist. See $ROOT_DIR/scripts/system/add_user.sh
+ SELFDEPLOY_INVALID_OPTIONS=3             Invalid options passed to $script_name
 EOF
     exit 0
 }
@@ -46,7 +47,7 @@ function eval_script_options () {
     set_usage usage2 opt3 opt2
 
     declare -A response
-    handle_usages response script_options usage1 usage2 || echo "Invalid options passed to $scripts_name" && return $INVALID_OPTIONS
+    handle_usages response script_options usage1 usage2 || echo "Invalid options passed to $script_name" && return $SELFDEPLOY_INVALID_OPTIONS
 
     invoke_callbacks response
 }
@@ -64,29 +65,21 @@ function check_username () {
     fi
 }
 
-function check_filesystem () {
-    if ! is_running_in_iso || ! findmnt -R /mnt &>/dev/null; then
-        echo "Filesystem is not mounted or doesn't exist under /mnt"
-        return $NO_FILESYSTEM
-    fi
-}
-
 function copy () {
+    is_running_in_iso && ( findmnt -R /mnt &>/dev/null || echo "Filesystem is not mounted" && return $NO_FILESYSTEM; )
+
     script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
     local install_root="$(cd "$script_dir/../.." && pwd -P)"
-    local target_uid=$(grep "^$username:" "/mnt/etc/passwd" | cut -d: -f3)
-    local target_gid=$(grep "^$username:" "/mnt/etc/group" | cut -d: -f3)
-    rsync -av --chown="$target_uid:$target_gid" "$install_root" "/mnt/home/$username/" &>/dev/null
-
+    local target_uid=$(grep "^$username:" "$( ( is_running_in_iso && echo "/mnt/etc/passwd"; ) || echo "/etc/passwd" )" | cut -d: -f3)
+    local target_gid=$(grep "^$username:" "$( ( is_running_in_iso && echo "/mnt/etc/group"; ) || echo "/etc/group" )" | cut -d: -f3)
+    rsync -av --chown="$target_uid:$target_gid" "$install_root" "$( ( is_running_in_iso && echo "/mnt/home/$username"; ) || echo "/home/$username" )" &>/dev/null
 }
 
 function main () {
-    check_filesystem || return $?
-
     eval_script_options "$@" || return $?
     verify $is_interactive input_username check_username || return $?
 
-    copy
+    copy || return $?
 }
 
 main "$@"

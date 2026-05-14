@@ -1,13 +1,13 @@
 #!/usr/bin/bash
 
+: "${ROOT_DIR:?ROOT_DIR is not set. Source setup.sh first}"
 set -euo pipefail
 
-source "${SCRIPTS_DIR:-}/utils/utils.sh"
-source "${SCRIPTS_DIR:-}/utils/parse_options.sh"
-source "${SCRIPTS_DIR:-}/system/mirrorlist.sh"
+source "$ROOT_DIR/scripts/utils/utils.sh"
+source "$ROOT_DIR/scripts/utils/parse_options.sh"
 
 readonly NO_FILE=1
-readonly INVALID_OPTIONS=2
+readonly INSTALLPKG_INVALID_OPTIONS=2
 readonly NO_FILESYSTEM=3
 
 function usage () {
@@ -21,8 +21,8 @@ Options:
 
 Error codes:
  NO_FILE=1                  File to install dependencies from is not found
- INVALID_OPTIONS=2          Invalid options passed to $scripts_name
- NO_FILESYSTEM=3            Filesystem is not mounted or $script_name is not running in live environment
+ INSTALLPKG_INVALID_OPTIONS=2       Invalid options passed to $script_name
+ NO_FILESYSTEM=3            Filesystem is not mounted
 EOF
     exit 0
 }
@@ -40,45 +40,31 @@ function eval_script_options () {
     set_usage usage1 opt1 opt2
 
     declare -A response
-    handle_usages response script_options usage1 || echo "Invalid options passed to $script_name" && return $INVALID_OPTIONS
+    handle_usages response script_options usage1 || echo "Invalid options passed to $script_name" && return $INSTALLPKG_INVALID_OPTIONS
 
     invoke_callbacks response
-}
-
-function check_filesystem () {
-    if !is_running_in_iso || ! findmnt -R /mnt &>/dev/null; then
-        echo "Filesystem is not mounted or doesn't exist under /mnt"
-        return $NO_FILESYSTEM
-    fi
 }
 
 function install_packages () {
     local string="$(sed 's/#.*$//' "$file")"
     local -a packages
     mapfile -t packages< <(echo "$string" | grep -oP "\S+")
-    pacstrap -K /mnt "${packages[@]}"
-}
 
-function update_mirrorlist () {
-    local path="$1"
-    reflector \
-        --country Netherlands,Germany,France,Belgium \
-        --protocol https \
-        --age 24 \
-        --sort rate \
-        --latest 20 \
-        --save "$path"
+    if is_running_in_iso; then
+        ( findmnt -R /mnt &>/dev/null || echo "Filesystem is not mounted" && return $NO_FILESYSTEM; ) && pacstrap -K /mnt "${packages[@]}" || echo "Wrong package name" && return $PACKAGE_ERROR
+    else
+        ( ( [ "$(id -u)" -eq 0 ] && pacman -Syu "${packages[@]}"; ) || sudo pacman -Syu "${packages[@]}"; ) || echo "Wrong package name" && return $PACKAGE_ERROR
+    fi
 }
 
 function main () {
-    check_filesystem || return $?
-
     eval_script_options "$@" || return $?
     [[ -e "${file:-}" ]] || echo "File to parse dependencies not found" && return $NO_FILE
 
-    update_mirrorlist
-    install_packages
+    # Update mirrorlist
+    "$ROOT_DIR/scripts/system/mirrorlist.sh" || return $?
+
+    install_packages || return $?
 }
 
 main "$@"
-

@@ -2,6 +2,7 @@ local M = {}
 
 M.opts = {
     bind = true,
+    always_trigger = true,
     hint_enable = false,
     floating_window = true,
     floating_window_above_cur_line = true,
@@ -16,6 +17,12 @@ M.opts = {
 }
 
 function M.setup()
+    local ok, signature = pcall(require, "lsp_signature")
+    if not ok then
+        return
+    end
+
+    signature.setup(M.opts)
 end
 
 function M.attach(bufnr)
@@ -24,7 +31,7 @@ function M.attach(bufnr)
         return
     end
 
-    signature.on_attach(M.opts, bufnr)
+    pcall(signature.on_attach, M.opts, bufnr)
 end
 
 return M

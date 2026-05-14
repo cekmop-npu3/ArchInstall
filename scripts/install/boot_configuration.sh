@@ -1,9 +1,10 @@
 #!/usr/bin/bash
 
+: "${ROOT_DIR:?ROOT_DIR is not set. Source setup.sh first}"
 set -euo pipefail
 
-source "${SCRIPTS_DIR:-}/utils/parse_options.sh"
-source "${SCRIPTS_DIR:-}/utils/utils.sh"
+source "$ROOT_DIR/scripts/utils/parse_options.sh"
+source "$ROOT_DIR/scripts/utils/utils.sh"
 
 readonly NO_FILESYSTEM=1
 
@@ -116,9 +117,8 @@ EOF
 }
 
 function main () {
-    check_filesystem || return $?
-
     eval_script_options "$@" || return $?
+    check_filesystem || return $?
 
     declare -A descriptor_array
     get_available_descriptors descriptor_array

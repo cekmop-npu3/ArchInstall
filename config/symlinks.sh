@@ -1,9 +1,10 @@
 #!/usr/bin/bash
 
+: "${ROOT_DIR:?ROOT_DIR is not set. Source setup.sh first}"
 set -euo pipefail
 
-source "${SCRIPTS_DIR:-}/utils/utils.sh"
-source "${SCRIPTS_DIR:-}/utils/parse_options.sh"
+source "$ROOT_DIR/scripts/utils/utils.sh"
+source "$ROOT_DIR/scripts/utils/parse_options.sh"
 
 readonly INVALID_CONFIG_PATH=1
 readonly INVALID_ACTION=2
@@ -29,7 +30,7 @@ Options:
         {
             "target": "target",
             "link": "link",
-            "force": true
+            "setup": "setup"
         }
     ]
 }
@@ -82,11 +83,13 @@ function check_action () {
         action="create"
     elif [[ "${action,,}" != "create" && "${action,,}" != "delete" ]]; then
         return $INVALID_ACTION
+    else
+        action="${action,,}"
     fi
 }
 
 function check_dependencies () {
-    if ! command which jq &>/dev/null; then
+    if ! command -v jq &>/dev/null; then
         return $MISSING_DEPENDENCY
     fi
 }
@@ -99,23 +102,31 @@ function parse_config_file () {
     local target link force
     for symlink in "${symlinks[@]}"; do
         target="$(echo "$symlink" | jq --tab --raw-output --exit-status '.["target"]')" || return $INVALID_TARGET
-        target="$(eval echo "$target")"
-        { [[ -n "$target" ]] && [[ "${target:0:1}" == "/" ]] && [[ -e "$target" ]]; } || return $NOT_ABSOLUTE_PATH
+        [[ "$target" == "~"* ]] && target="${target/#\~/$HOME}"
+        { [[ -n "$target" ]] && [[ "${target:0:1}" == "/" ]]; } || return $NOT_ABSOLUTE_PATH
+        if [[ "$action" == "create" ]] && ! [[ -e "$target" ]]; then
+            return $NOT_ABSOLUTE_PATH
+        fi
         link="$(echo "$symlink" | jq --tab --raw-output --exit-status '.["link"]')" || return $INVALID_SYMLINK
-        link="$(eval echo "$link")"
+        [[ "$link" == "~"* ]] && link="${link/#\~/$HOME}"
         { [[ -n "$link" ]] && [[ "${link:0:1}" == "/" ]]; } || return $NOT_ABSOLUTE_PATH
-        force="$(echo "$symlink" | jq --tab --raw-output '.["force"] // false')"
+        setup_script="$(echo "$symlink" | jq --tab --raw-output '.["setup"]')"
+        [[ "$setup_script" == "~"* ]] && setup_script="${setup_script/#\~/$HOME}"
 
         case "$action" in
             (create)
                 mkdir -p "$(dirname "$link")"
-                if [[ "$force" == "true" ]]; then
-                    ln -sfn "$target" "$link" &>/dev/null || return $INVALID_SYMLINK
-                else
-                    ln -sn "$target" "$link" &>/dev/null || return $INVALID_SYMLINK
+                ln -sfn "$target" "$link" &>/dev/null || return $INVALID_SYMLINK
+                if [[ "$setup_script" != "null" ]]; then
+                    [[ -x "$setup_script" ]] || return $INVALID_SYMLINK
+                    "$setup_script" || return $?
                 fi
             ;;
             (delete)
+                if [[ "$setup_script" != "null" ]]; then
+                    [[ -x "$setup_script" ]] || return $INVALID_SYMLINK
+                    "$setup_script" --delete || return $?
+                fi
                 { [[ -L "$link" ]] && unlink "$link" &>/dev/null; } || return $INVALID_SYMLINK
             ;;
         esac
@@ -134,4 +145,3 @@ function main () {
 }
 
 main "$@"
-

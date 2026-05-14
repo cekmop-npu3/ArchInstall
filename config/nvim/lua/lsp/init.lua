@@ -8,6 +8,16 @@ function M.setup()
     utils.safe_setup("lsp.servers.clangd")
     utils.safe_setup("lsp.servers.cmake_ls")
 
+    vim.lsp.config.jdtls = vim.tbl_deep_extend("force", vim.lsp.config.jdtls or {}, {
+        settings = {
+            java = {
+                completion = {
+                    guessMethodArguments = false,
+                },
+            },
+        },
+    })
+
     local lsp_keymaps = require("lsp.keymaps")
 
     vim.diagnostic.config({

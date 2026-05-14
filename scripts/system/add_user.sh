@@ -1,13 +1,15 @@
 #!/usr/bin/bash
 
+: "${ROOT_DIR:?ROOT_DIR is not set. Source setup.sh first}"
 set -euo pipefail
 
-source "${SCRIPTS_DIR:-}/utils/utils.sh"
-source "${SCRIPTS_DIR:-}/utils/parse_options.sh"
+source "$ROOT_DIR/scripts/utils/utils.sh"
+source "$ROOT_DIR/scripts/utils/parse_options.sh"
 
 readonly INVALID_USERNAME=1
 readonly INVALID_PASSWORD=2
-readonly INVALID_OPTIONS=3
+readonly ADDUSER_INVALID_OPTIONS=3
+readonly NO_FILESYSTEM=4
 
 declare -i is_interactive=1
 
@@ -26,7 +28,8 @@ Options:
 Exit codes:
  INVALID_USERNAME=1    
  INVALID_PASSWORD=2                       Password is empty or passwords don't match
- INVALID_OPTIONS=3                        Invalid options passed to $scripts_name
+ ADDUSER_INVALID_OPTIONS=3                Invalid options passed to $script_name
+ NO_FILESYSTEM=4                          Filesystem is not mounted
 EOF
     exit 0
 }
@@ -49,7 +52,7 @@ function eval_script_options () {
     set_usage usage2 opt3 opt4
 
     declare -A response
-    handle_usages response script_options usage1 usage2 || echo "Invalid options passed to $scripts_name" && return $INVALID_OPTIONS
+    handle_usages response script_options usage1 usage2 || echo "Invalid options passed to $script_name" && return $ADDUSER_INVALID_OPTIONS
 
     invoke_callbacks response
 }
@@ -92,10 +95,11 @@ usermod -aG wheel,video,render,input $username
 echo \"%wheel ALL=(ALL:ALL) ALL\" > /etc/sudoers.d/10-wheel
 chmod 0440 /etc/sudoers.d/10-wheel
 "
-    if is_running_is_iso; then
-        return arch-chroot /mnt &>/dev/null <<< "$commands"
+    if is_running_in_iso; then
+        ( findmnt -R /mnt &>/dev/null || echo "Filesystem is not mounted" && return $NO_FILESYSTEM; ) && arch-chroot /mnt &>/dev/null <<< "$commands"
+    else
+        bash -c "$commands"
     fi
-    exec "$commands"
 }
 
 function main () {
@@ -108,4 +112,3 @@ function main () {
 }
 
 main "$@"
-

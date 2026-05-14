@@ -1,11 +1,12 @@
 #!/usr/bin/bash
 
-source "${SCRIPTS_DIR:-}/utils/utils.sh"
-source "${SCRIPTS_DIR:-}/utils/parse_options.sh"
+: "${ROOT_DIR:?ROOT_DIR is not set. Source setup.sh first}"
+source "$ROOT_DIR/scripts/utils/utils.sh"
+source "$ROOT_DIR/scripts/utils/parse_options.sh"
 
 readonly INVALID_TIMEZONE=1
 readonly INVALID_HOSTNAME=2
-readonly INVALID_OPTIONS=3
+readonly SYSCFG_INVALID_OPTIONS=3
 readonly WRONG_ENV=4
 
 declare -i is_interactive=1
@@ -25,7 +26,7 @@ Options:
 Error codes:
  INVALID_TIMEZONE=1                Invalid timezone was specified, see timedatectl list-timezones
  INVALID_HOSTNAME=2
- INVALID_OPTIONS=3                 Invalid options passed to $scripts_name
+ SYSCFG_INVALID_OPTIONS=3          Invalid options passed to $script_name
  WRONG_ENV=4                       Script must be ran in live environment
 EOF
     exit 0
@@ -51,7 +52,7 @@ function eval_script_options () {
     set_usage usage2 opt3 opt4
 
     declare -A response
-    handle_usages response script_options usage1 usage2 || echo "Invalid options passed to $scripts_name" && return $INVALID_OPTIONS
+    handle_usages response script_options usage1 usage2 || echo "Invalid options passed to $script_name" && return $SYSCFG_INVALID_OPTIONS
 
     invoke_callbacks response
 }
@@ -107,10 +108,21 @@ function populate_vconsole () {
     arch-chroot /mnt &>/dev/null <<< "echo 'KEYMAP=\"us\"' > /etc/vconsole.conf"
 }
 
+function ignore_packages () {
+    arch-chroot /mnt &>/dev/null <<-EOF
+sed -i 's/^#IgnorePkg.*/IgnorePkg = linux-lts linux-lts-headers/' /etc/pacman.conf
+EOF
+}
+
+function install_essentials () {
+    "$ROOT_DIR/scripts/system/install_packages.sh" --file packages.txt || return $?
+}
+
 function main () {
+    eval_script_options "$@" || return $?
     is_running_in_iso || echo "$script_name must be running in live environment" && return $WRONG_ENV
 
-    eval_script_options "$@" || return $?
+    install_essentials || return $?
 
     verify $is_interactive input_timezone check_timezone || return $?
     verify $is_interactive input_hostname check_hostname || return $?
@@ -119,7 +131,7 @@ function main () {
     generate_locales
     set_hostname
     populate_vconsole
+    ignore_packages
 }
 
 main "$@"
-

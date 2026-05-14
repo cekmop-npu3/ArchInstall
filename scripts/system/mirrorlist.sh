@@ -1,9 +1,12 @@
 #!/bin/bash
 
+: "${ROOT_DIR:?ROOT_DIR is not set. Source setup.sh first}"
 set -euo pipefail
 
-source "${SCRIPTS_DIR:-}/utils/utils.sh"
-source "${SCRIPTS_DIR:-}/utils/parse_options.sh"
+source "$ROOT_DIR/scripts/utils/utils.sh"
+source "$ROOT_DIR/scripts/utils/parse_options.sh"
+
+readonly NO_FILESYSTEM=1
 
 function usage () {
     cat <<EOF
@@ -12,6 +15,9 @@ Usage:
 
 Options:
  -h, --help                 Show this help
+
+Error codes:
+ NO_FILESYSTEM=1            Filesystem is not mounted
 EOF
     exit 0
 }
@@ -32,13 +38,14 @@ function eval_script_options () {
 }
 
 function update_mirrorlist () {
+    is_running_in_iso && ( findmnt -R /mnt &>/dev/null || echo "Filesystem is not mounted" && return $NO_FILESYSTEM; )
     reflector \
         --country Netherlands,Germany,France,Belgium \
         --protocol https \
         --age 24 \
         --sort rate \
         --latest 20 \
-        --save "$( ( is_running_in_iso && echo "/etc/pacman.d/mirrorlist"; ) || echo "/mnt/etc/pacman.d/mirrorlist" )"
+        --save "$( ( is_running_in_iso && echo "/mnt/etc/pacman.d/mirrorlist"; ) || echo "/etc/pacman.d/mirrorlist" )"
 }
 
 function main() {

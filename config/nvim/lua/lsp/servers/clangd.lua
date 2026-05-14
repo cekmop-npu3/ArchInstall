@@ -8,6 +8,7 @@ function M.setup()
             "--clang-tidy",
             "--background-index",
             "--offset-encoding=utf-8",
+            "--function-arg-placeholders=false",
         },
         root_markers = {
             ".clangd",

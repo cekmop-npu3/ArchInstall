@@ -1,9 +1,10 @@
 #!/usr/bin/bash
 
+: "${ROOT_DIR:?ROOT_DIR is not set. Source setup.sh first}"
 set -euo pipefail
 
-source "${SCRIPTS_DIR:-}/utils/utils.sh"
-source "${SCRIPTS_DIR:-}/utils/parse_options.sh"
+source "$ROOT_DIR/scripts/utils/utils.sh"
+source "$ROOT_DIR/scripts/utils/parse_options.sh"
 
 function usage () {
     cat <<EOF
@@ -37,7 +38,7 @@ if uwsm check may-start; then
     exec uwsm start hyprland.desktop
 fi
 EOF
-    cat >> ~/.bashrc <<< "alias update-mirrorlist='$SCRIPTS_DIR/system/mirrorlist.sh'"
+    cat >> ~/.bashrc <<< "alias update-mirrorlist='$ROOT_DIR/scripts/system/mirrorlist.sh'"
     cat >> ~/.bashrc <<-'EOF'
 export MANPAGER="nvim -c 'Man!' -"
 export PATH=$PATH:~/lua-language-server/bin

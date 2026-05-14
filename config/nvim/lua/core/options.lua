@@ -27,6 +27,7 @@ function M.setup()
     vim.o.termguicolors = true
     vim.o.confirm = true
     vim.o.wrap = true
+    vim.o.hlsearch = false
 
     vim.g.netrw_browse_split = 0
     vim.g.netrw_banner = 0

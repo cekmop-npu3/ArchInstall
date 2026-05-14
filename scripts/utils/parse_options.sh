@@ -1,6 +1,7 @@
 #!/usr/bin/bash
 
-source "${SCRIPTS_DIR:-}/utils/make_sourced.sh"
+: "${ROOT_DIR:?ROOT_DIR is not set. Source setup.sh first}"
+source "$ROOT_DIR/scripts/utils/make_sourced.sh"
 
 readonly INVALID_OPTIONS=1
 readonly INVALID_SHORT_OPT=2
