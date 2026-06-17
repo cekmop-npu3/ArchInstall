@@ -1,6 +1,4 @@
-
 local M = {}
-
 
 function M.setup()
     local api = require("Comment.api")

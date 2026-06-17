@@ -9,6 +9,8 @@ function M.setup()
     diffview.setup({
         use_icons = false,
     })
+
+    require("plugins.diffview.keymaps").setup()
 end
 
 return M

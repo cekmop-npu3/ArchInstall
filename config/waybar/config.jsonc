@@ -1,7 +1,6 @@
 {
     "layer": "bottom",
-    "margin": "10px 10px 0 10px",
-
+    "reload_style_on_change": true,
     "include": [
         "~/ArchInstall/config/waybar/modules/clock.jsonc",
         "~/ArchInstall/config/waybar/modules/pulseaudio.jsonc",

@@ -1,6 +1,5 @@
 #!/usr/bin/bash
 
-: "${ROOT_DIR:?ROOT_DIR is not set. Source setup.sh first}"
 source "$ROOT_DIR/scripts/utils/make_sourced.sh"
 
 readonly NOT_IN_ISO=100

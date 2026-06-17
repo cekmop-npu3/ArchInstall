@@ -1,52 +1,52 @@
 {
     "symlinks": [
         {
-            "target": "$ArchInstall/config/alacritty",
-            "link": "$ArchInstall/alacritty",
-            "setup": "$ArchInstall/alacritty/setup.sh"
+            "target": "$ROOT_DIR/config/alacritty",
+            "link": "~/.config/alacritty",
+            "setup": "$ROOT_DIR/config/alacritty/setup.sh"
         },
         {
-            "target": "$ArchInstall/config/copyq",
-            "link": "$ArchInstall/copyq"
+            "target": "$ROOT_DIR/config/copyq",
+            "link": "~/.config/copyq"
         },
         {
-            "target": "$ArchInstall/config/hypr",
-            "link": "$ArchInstall/hypr"
+            "target": "$ROOT_DIR/config/hypr",
+            "link": "~/.config/hypr"
         },
         {
-            "target": "$ArchInstall/config/nvim",
-            "link": "$ArchInstall/nvim"
+            "target": "$ROOT_DIR/config/nvim",
+            "link": "~/.config/nvim"
         },
         {
-            "target": "$ArchInstall/config/waybar",
-            "link": "$ArchInstall/waybar"
+            "target": "$ROOT_DIR/config/waybar",
+            "link": "~/.config/waybar"
         },
         {
-            "target": "$ArchInstall/config/rofi",
-            "link": "$ArchInstall/rofi"
+            "target": "$ROOT_DIR/config/rofi",
+            "link": "~/.config/rofi"
         },
         {
-            "target": "$ArchInstall/config/rofi/themes",
+            "target": "$ROOT_DIR/config/rofi/themes",
             "link": "~/.local/share/rofi/themes"
         },
         {
-            "target": "$ArchInstall/config/btop",
-            "link": "$ArchInstall/btop"
+            "target": "$ROOT_DIR/config/btop",
+            "link": "~/.config/btop"
         },
         {
-            "target": "$ArchInstall/config/gtk-3.0",
-            "link": "$ArchInstall/gtk-3.0"
+            "target": "$ROOT_DIR/config/gtk-3.0",
+            "link": "~/.config/gtk-3.0"
         },
         {
-            "target": "$ArchInstall/config/gtk-4.0",
-            "link": "$ArchInstall/gtk-4.0"
+            "target": "$ROOT_DIR/config/gtk-4.0",
+            "link": "~/.config/gtk-4.0"
         },
         {
-            "target": "$ArchInstall/config/bashrc",
+            "target": "$ROOT_DIR/config/bashrc",
             "link": "~/.bashrc"
         },
         {
-            "target": "$ArchInstall/config/bash_profile",
+            "target": "$ROOT_DIR/config/bash_profile",
             "link": "~/.bash_profile"
         }
     ]

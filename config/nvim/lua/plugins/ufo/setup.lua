@@ -16,6 +16,8 @@ function M.setup()
             return { "lsp", "indent" }
         end,
     })
+
+    require("plugins.ufo.keymaps").setup()
 end
 
 return M

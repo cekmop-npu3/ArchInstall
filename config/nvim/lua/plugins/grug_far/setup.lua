@@ -11,6 +11,8 @@ function M.setup()
             replace = { n = "<leader>r" },
         },
     })
+
+    require("plugins.grug_far.keymaps").setup()
 end
 
 return M

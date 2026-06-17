@@ -1,6 +1,5 @@
 #!/usr/bin/bash
 
-: "${ROOT_DIR:?ROOT_DIR is not set. Source setup.sh first}"
 set -euo pipefail
 
 source "$ROOT_DIR/scripts/utils/utils.sh"
@@ -20,9 +19,9 @@ Options:
  -h, --help                 Show this help
 
 Error codes:
- NO_FILE=1                  File to install dependencies from is not found
+ NO_FILE=1                          File to install dependencies from is not found
  INSTALLPKG_INVALID_OPTIONS=2       Invalid options passed to $script_name
- NO_FILESYSTEM=3            Filesystem is not mounted
+ NO_FILESYSTEM=3                    Filesystem is not mounted
 EOF
     exit 0
 }

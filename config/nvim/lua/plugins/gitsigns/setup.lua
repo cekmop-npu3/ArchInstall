@@ -1,4 +1,3 @@
-
 local M = {}
 
 
@@ -13,6 +12,8 @@ function M.setup()
             delay = 500,
         },
     })
+
+    require("plugins.gitsigns.keymaps").setup()
 end
 
 return M

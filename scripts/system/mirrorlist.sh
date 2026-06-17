@@ -1,6 +1,5 @@
 #!/bin/bash
 
-: "${ROOT_DIR:?ROOT_DIR is not set. Source setup.sh first}"
 set -euo pipefail
 
 source "$ROOT_DIR/scripts/utils/utils.sh"

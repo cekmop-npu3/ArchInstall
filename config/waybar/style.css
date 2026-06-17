@@ -1,18 +1,17 @@
 * {
     font-family: "JetBrainsMono Nerd Font";
-    font-size: 16px;
+    font-size: 102%;
 }
 
 window#waybar {
-    border-radius: 15px;
-    background-color: rgba(24, 24, 24, 0.8); 
+    background-color: #252627; 
 }
 
 #battery, #clock, #pulseaudio, #pulseaudio-slider, #network, #bluetooth, #language, #workspaces, #custom-poweroff {
-    background-color: #222226;
+    background-color: #191a1b;
     padding: 0.5em 1em;
     border-radius: 1em;
-    margin: 0.5em;
+    margin: 0.7em;
 }
 
 #battery.warning {
@@ -20,8 +19,8 @@ window#waybar {
 }
 
 #pulseaudio-slider slider {
-    min-height: 0px;
-    min-width: 0px;
+    min-height: 0;
+    min-width: 0;
     opacity: 0;
     background-image: none;
     border: none;
@@ -29,15 +28,15 @@ window#waybar {
 }
 
 #pulseaudio-slider trough {
-    min-height: 10px;
-    min-width: 80px;
-    border-radius: 5px;
+    min-height: 0.625em;
+    min-width: 5em;
+    border-radius: 0.3125em;
     background: black;
 }
 
 #pulseaudio-slider highlight {
-    min-width: 10px;
-    border-radius: 5px;
+    min-width: 0.625em;
+    border-radius: 0.3125em;
     background: #d27e99;
 }
 
@@ -45,4 +44,3 @@ tooltip {
     background-color: rgba(24, 24, 24, 0.8);
     border-radius: 1em;
 }
-

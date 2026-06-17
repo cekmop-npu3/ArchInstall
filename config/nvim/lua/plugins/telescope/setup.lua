@@ -1,6 +1,5 @@
 local M = {}
 
-
 function M.setup()
     local telescope = require("telescope")
     if not telescope then
@@ -44,6 +43,8 @@ function M.setup()
             },
         },
     })
+
+    require("plugins.telescope.keymaps").setup()
 end
 
 return M

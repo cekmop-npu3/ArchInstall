@@ -1,60 +1,25 @@
-
 local M = {}
 
-local utils = require("core.utils")
-
 function M.setup()
-    utils.safe_setup("lsp.servers.lua_ls")
-    utils.safe_setup("lsp.servers.clangd")
-    utils.safe_setup("lsp.servers.cmake_ls")
-
-    vim.lsp.config.jdtls = vim.tbl_deep_extend("force", vim.lsp.config.jdtls or {}, {
-        settings = {
-            java = {
-                completion = {
-                    guessMethodArguments = false,
-                },
-            },
-        },
-    })
-
-    local lsp_keymaps = require("lsp.keymaps")
-
-    vim.diagnostic.config({
-        virtual_lines = { current_line = true },
-        signs = true,
-        underline = true,
-        update_in_insert = false,
-        severity_sort = true,
-    })
-
     local function on_lsp_attach(ev)
         local client = vim.lsp.get_client_by_id(ev.data.client_id)
         if not client then
             return
         end
-
         vim.bo[ev.buf].omnifunc = "v:lua.vim.lsp.omnifunc"
-
-        if lsp_keymaps and type(lsp_keymaps.on_attach) == "function" then
-            lsp_keymaps.on_attach(ev, client)
-        end
+        require("lsp.keymaps").on_attach(ev, client)
     end
 
     vim.api.nvim_create_autocmd("LspAttach", {
         callback = on_lsp_attach,
     })
 
-    local function safe_enable(name)
-        pcall(vim.lsp.enable, name)
-    end
+    vim.lsp.config["lua_ls"] = require("lsp.config.lua_ls")
 
-    safe_enable("clangd")
-    safe_enable("cmakels")
-    safe_enable("lua_ls")
-    safe_enable("luals")
-    safe_enable("bashls")
-    safe_enable("jdtls")
+    vim.lsp.enable("clangd")
+    vim.lsp.enable("lua_ls")
+    vim.lsp.enable("bashls")
+    vim.lsp.enable("pylsp")
 end
 
 return M

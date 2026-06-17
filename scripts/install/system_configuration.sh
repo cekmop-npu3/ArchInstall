@@ -1,6 +1,5 @@
 #!/usr/bin/bash
 
-: "${ROOT_DIR:?ROOT_DIR is not set. Source setup.sh first}"
 source "$ROOT_DIR/scripts/utils/utils.sh"
 source "$ROOT_DIR/scripts/utils/parse_options.sh"
 
@@ -31,8 +30,6 @@ Error codes:
 EOF
     exit 0
 }
-
-# TODO: Add IgnorePkg = linux-lts linux-lts-headers in /etc/pacman.conf
 
 function _set_timezone () { timezone="${1:-}"; }
 function _set_hostname () { hostname="${1:-}"; }

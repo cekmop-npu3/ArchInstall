@@ -1,17 +1,27 @@
 local M = {}
 
 function M.setup()
-    vim.keymap.set("n", "K", "H", { desc = "Cursor to screen top" })
-    vim.keymap.set("n", "J", "L", { desc = "Cursor to screen bottom" })
+    local function clear_search_then(keys)
+        return function()
+            vim.cmd("nohlsearch")
+            return vim.api.nvim_replace_termcodes(keys, true, false, true)
+        end
+    end
+
+    vim.keymap.set({"n", "v"}, "K", "H", { desc = "Cursor to screen top" })
+    vim.keymap.set({"n", "v"}, "J", "L", { desc = "Cursor to screen bottom" })
+    vim.keymap.set({ "n", "v" }, "W", "b", { desc = "Backward to start of word" })
+    vim.keymap.set({ "n", "v" }, "E", "ge", { desc = "Backward to end of word" })
     vim.keymap.set({ "n", "v" }, "<leader>k", "gg", { desc = "Go to file start" })
     vim.keymap.set({ "n", "v" }, "<leader>j", "G", { desc = "Go to file end" })
     vim.keymap.set("n", "<leader><Tab>", ":tabn<CR>", { desc = "Next tab" })
     vim.keymap.set("n", "<leader><S-Tab>", ":tabp<CR>", { desc = "Previous tab" })
-    vim.keymap.set("t", "<Esc>", "<C-\\><C-n>", { desc = "Exit terminal mode" })
-    vim.keymap.set("n", "<C-j>", "<C-d>zz", { desc = "Half-page down and center" })
-    vim.keymap.set("n", "<C-k>", "<C-u>zz", { desc = "Half-page up and center" })
-    vim.keymap.set("n", "n", "nzzzv", { desc = "Next search result and center" })
-    vim.keymap.set("n", "N", "Nzzzv", { desc = "Previous search result and center" })
+    vim.keymap.set({ "n", "i", "x", "s", "c" }, "<Esc>", clear_search_then("<Esc>"), { expr = true, desc = "Escape and clear search highlight" })
+    vim.keymap.set("t", "<Esc>", "<C-\\><C-n><cmd>nohlsearch<CR>", { desc = "Exit terminal mode and clear search highlight" })
+    vim.keymap.set({"n", "v"}, "<C-j>", "<C-d>zz", { desc = "Half-page down and center" })
+    vim.keymap.set({"n", "v"}, "<C-k>", "<C-u>zz", { desc = "Half-page up and center" })
+    vim.keymap.set({"n", "v"}, "n", "nzzzv", { desc = "Next search result and center" })
+    vim.keymap.set({"n", "v"}, "N", "Nzzzv", { desc = "Previous search result and center" })
     vim.keymap.set("x", "<C-p>", [["_dP]], { desc = "Paste over selection without yanking it" })
 
     vim.keymap.set("n", "<A-h>", "<C-w>h", { remap = true, silent = true, desc = "Window left" })

@@ -9,6 +9,8 @@ function M.setup()
     git_conflict.setup({
         default_mappings = false,
     })
+
+    require("plugins.git_conflict.keymaps").setup()
 end
 
 return M

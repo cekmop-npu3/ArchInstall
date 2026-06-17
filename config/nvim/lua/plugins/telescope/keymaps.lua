@@ -1,5 +1,10 @@
 local M = {}
 
+local function with_picker_opts(picker, extra_opts)
+    return function()
+        picker(extra_opts)
+    end
+end
 
 function M.setup()
     local builtin = require("telescope.builtin")
@@ -66,7 +71,7 @@ function M.setup()
             return
         end
 
-        builtin.live_grep({
+        builtin.find_files({
             prompt_title = "System Search: " .. search_path,
             search_dirs = { search_path },
             additional_args = function()
@@ -82,37 +87,33 @@ function M.on_lsp_attach(ev, client)
         return
     end
 
+    local lsp_picker_opts = {
+        jump_type = "never",
+    }
+
     local opts = { buffer = ev.buf, silent = true }
 
     if client:supports_method("textDocument/definition") then
         if type(builtin.lsp_definitions) == "function" then
-            vim.keymap.set("n", "<leader>df", builtin.lsp_definitions, vim.tbl_extend("force", opts, { desc = "LSP definitions" }))
-        end
-    end
-
-    if client:supports_method("textDocument/declaration") then
-        if type(builtin.lsp_declarations) == "function" then
-            vim.keymap.set("n", "<leader>de", builtin.lsp_declarations, vim.tbl_extend("force", opts, { desc = "LSP declarations" }))
-        else
-            vim.keymap.set("n", "<leader>de", vim.lsp.buf.declaration, vim.tbl_extend("force", opts, { desc = "LSP declarations" }))
+            vim.keymap.set("n", "<leader>df", with_picker_opts(builtin.lsp_definitions, lsp_picker_opts), vim.tbl_extend("force", opts, { desc = "LSP definitions" }))
         end
     end
 
     if client:supports_method("textDocument/implementation") then
         if type(builtin.lsp_implementations) == "function" then
-            vim.keymap.set("n", "<leader>i", builtin.lsp_implementations, vim.tbl_extend("force", opts, { desc = "LSP implementations" }))
+            vim.keymap.set("n", "<leader>i", with_picker_opts(builtin.lsp_implementations, lsp_picker_opts), vim.tbl_extend("force", opts, { desc = "LSP implementations" }))
         end
     end
 
     if client:supports_method("textDocument/typeDefinition") then
         if type(builtin.lsp_type_definitions) == "function" then
-            vim.keymap.set("n", "<leader>t", builtin.lsp_type_definitions, vim.tbl_extend("force", opts, { desc = "LSP type definitions" }))
+            vim.keymap.set("n", "<leader>t", with_picker_opts(builtin.lsp_type_definitions, lsp_picker_opts), vim.tbl_extend("force", opts, { desc = "LSP type definitions" }))
         end
     end
 
     if client:supports_method("textDocument/references") then
         if type(builtin.lsp_references) == "function" then
-            vim.keymap.set("n", "<leader>re", builtin.lsp_references, vim.tbl_extend("force", opts, { desc = "LSP references" }))
+            vim.keymap.set("n", "<leader>re", with_picker_opts(builtin.lsp_references, lsp_picker_opts), vim.tbl_extend("force", opts, { desc = "LSP references" }))
         end
     end
 

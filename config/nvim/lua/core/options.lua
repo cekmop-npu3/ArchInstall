@@ -1,4 +1,3 @@
-
 local M = {}
 
 function M.setup()
@@ -6,7 +5,7 @@ function M.setup()
     vim.g.loaded_netrwPlugin = 1
 
     vim.o.showmode = true
-    vim.o.scrolloff = 3
+    vim.o.scrolloff = 5
     vim.o.matchpairs = "(:),{:},[:],<:>"
     vim.o.number = true
     vim.o.ruler = true
@@ -27,7 +26,6 @@ function M.setup()
     vim.o.termguicolors = true
     vim.o.confirm = true
     vim.o.wrap = true
-    vim.o.hlsearch = false
 
     vim.g.netrw_browse_split = 0
     vim.g.netrw_banner = 0
