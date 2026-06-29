@@ -12,9 +12,9 @@ readonly INVALID_PASSWORD=7
 readonly DF_INVALID_OPTIONS=8
 readonly DF_ROOT_DIR_INVALID=9
 
-[[ -n "${ROOT_DIR:-}" ]] || echo "ROOT_DIR env variable is not set" && return $DF_ROOT_DIR_INVALID
+[[ -n "${ROOT_DIR:-}" ]] || { echo "ROOT_DIR env variable is not set"; exit $DF_ROOT_DIR_INVALID; }
 
-[[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || echo "ROOT_DIR is invalid" && return $DF_ROOT_DIR_INVALID
+[[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || { echo "ROOT_DIR is invalid"; exit $DF_ROOT_DIR_INVALID; }
 
 source "$ROOT_DIR/scripts/utils/parse_options.sh"
 source "$ROOT_DIR/scripts/utils/utils.sh"

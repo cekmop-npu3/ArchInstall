@@ -11,9 +11,9 @@ readonly NOT_ABSOLUTE_PATH=6
 readonly INVALID_SYMLINK=7
 readonly SS_ROOT_DIR_INVALID=8
 
-[[ -n "${ROOT_DIR:-}" ]] || echo "ROOT_DIR env variable is not set" && return $SS_ROOT_DIR_INVALID
+[[ -n "${ROOT_DIR:-}" ]] || { echo "ROOT_DIR env variable is not set"; return $SS_ROOT_DIR_INVALID; }
 
-[[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || echo "ROOT_DIR is invalid" && return $SS_ROOT_DIR_INVALID
+[[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || { echo "ROOT_DIR is invalid"; return $SS_ROOT_DIR_INVALID; }
 
 source "$ROOT_DIR/scripts/utils/utils.sh"
 source "$ROOT_DIR/scripts/utils/parse_options.sh"

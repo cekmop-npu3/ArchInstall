@@ -7,9 +7,9 @@ readonly INSTALLPKG_INVALID_OPTIONS=2
 readonly NO_FILESYSTEM=3
 readonly IP_ROOT_DIR_INVALID=4
 
-[[ -n "${ROOT_DIR:-}" ]] || echo "ROOT_DIR env variable is not set" && return $IP_ROOT_DIR_INVALID
+[[ -n "${ROOT_DIR:-}" ]] || { echo "ROOT_DIR env variable is not set"; exit $IP_ROOT_DIR_INVALID; }
 
-[[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || echo "ROOT_DIR is invalid" && return $IP_ROOT_DIR_INVALID
+[[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || { echo "ROOT_DIR is invalid"; exit $IP_ROOT_DIR_INVALID; }
 
 source "$ROOT_DIR/scripts/utils/utils.sh"
 source "$ROOT_DIR/scripts/utils/parse_options.sh"

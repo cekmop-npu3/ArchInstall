@@ -4,9 +4,9 @@ readonly NOT_IN_ISO=100
 readonly INVALID_FUNCTION=101
 readonly UU_ROOT_DIR_INVALID=102
 
-[[ -n "${ROOT_DIR:-}" ]] || echo "ROOT_DIR env variable is not set" && return $UU_ROOT_DIR_INVALID
+[[ -n "${ROOT_DIR:-}" ]] || { echo "ROOT_DIR env variable is not set"; exit $UU_ROOT_DIR_INVALID; }
 
-[[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || echo "ROOT_DIR is invalid" && return $UU_ROOT_DIR_INVALID
+[[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || { echo "ROOT_DIR is invalid"; exit $UU_ROOT_DIR_INVALID; }
 
 source "$ROOT_DIR/scripts/utils/make_sourced.sh"
 

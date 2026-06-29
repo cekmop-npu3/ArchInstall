@@ -6,9 +6,9 @@ readonly SYSCFG_INVALID_OPTIONS=3
 readonly WRONG_ENV=4
 readonly SC_ROOT_DIR_INVALID=5
 
-[[ -n "${ROOT_DIR:-}" ]] || echo "ROOT_DIR env variable is not set" && return $SC_ROOT_DIR_INVALID
+[[ -n "${ROOT_DIR:-}" ]] || { echo "ROOT_DIR env variable is not set"; exit $SC_ROOT_DIR_INVALID; }
 
-[[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || echo "ROOT_DIR is invalid" && return $SC_ROOT_DIR_INVALID
+[[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || { echo "ROOT_DIR is invalid"; exit $SC_ROOT_DIR_INVALID; }
 
 source "$ROOT_DIR/scripts/utils/utils.sh"
 source "$ROOT_DIR/scripts/utils/parse_options.sh"

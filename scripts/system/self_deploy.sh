@@ -7,9 +7,9 @@ readonly INVALID_USERNAME=2
 readonly SELFDEPLOY_INVALID_OPTIONS=3
 readonly SD_ROOT_DIR_INVALID=4
 
-[[ -n "${ROOT_DIR:-}" ]] || echo "ROOT_DIR env variable is not set" && return $SD_ROOT_DIR_INVALID
+[[ -n "${ROOT_DIR:-}" ]] || { echo "ROOT_DIR env variable is not set"; exit $SD_ROOT_DIR_INVALID; }
 
-[[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || echo "ROOT_DIR is invalid" && return $SD_ROOT_DIR_INVALID
+[[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || { echo "ROOT_DIR is invalid"; exit $SD_ROOT_DIR_INVALID; }
 
 source "$ROOT_DIR/scripts/utils/utils.sh"
 source "$ROOT_DIR/scripts/utils/parse_options.sh"

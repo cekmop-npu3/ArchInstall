@@ -8,9 +8,9 @@ readonly INVALID_OPTIONS=1
 readonly PACMAN_ERROR=2
 readonly ST_ROOT_DIR_INVALID=3
 
-[[ -n "${ROOT_DIR:-}" ]] || echo "ROOT_DIR env variable is not set" && return $ST_ROOT_DIR_INVALID
+[[ -n "${ROOT_DIR:-}" ]] || { echo "ROOT_DIR env variable is not set"; exit $ST_ROOT_DIR_INVALID; }
 
-[[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || echo "ROOT_DIR is invalid" && return $ST_ROOT_DIR_INVALID
+[[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || { echo "ROOT_DIR is invalid"; exit $ST_ROOT_DIR_INVALID; }
 
 source "$ROOT_DIR/scripts/utils/make_sourced"
 source "$ROOT_DIR/scripts/utils/utils.sh"
