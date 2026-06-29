@@ -25,9 +25,13 @@ function M.setup()
         { src = "https://github.com/rcarriga/nvim-notify.git" },
         { src = "https://github.com/nvim-tree/nvim-tree.lua.git" },
         { src = "https://github.com/nvim-tree/nvim-web-devicons.git" },
+        { src = "https://github.com/nvim-treesitter/nvim-treesitter.git" },
         { src = "https://github.com/nvim-lualine/lualine.nvim.git" },
         { src = "https://github.com/goolord/alpha-nvim.git" },
-        { src = "https://github.com/projekt0n/github-nvim-theme.git" }
+        { src = "https://github.com/projekt0n/github-nvim-theme.git" },
+        { src = "https://github.com/MeanderingProgrammer/render-markdown.nvim.git" },
+        { src = "https://github.com/brianhuster/live-preview.nvim.git" },
+        { src = "https://github.com/akinsho/toggleterm.nvim.git" }
     })
 
     if not ok_add then
@@ -44,10 +48,14 @@ function M.setup()
         "plugins.git_conflict",
         "plugins.ufo",
         "plugins.nvim_tree",
+        "plugins.treesitter",
         "plugins.cmp",
         "plugins.github_colorscheme",
+        "plugins.live_preview",
+        "plugins.toggleterm",
         "plugins.popups",
         "plugins.noice",
+        "plugins.render_markdown",
         "plugins.alpha",
         "plugins.lualine"
     }

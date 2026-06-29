@@ -4,6 +4,9 @@ base base-devel linux linux-headers linux-lts linux-lts-headers linux-firmware
 # Intel CPU microcode and essential tools
 intel-ucode grub efibootmgr
 
+# AMD CPU microcode
+# amd-ucode
+
 # Documentation, editors, and development tools
 man-db man-pages sudo nano ninja clang rust go python python-pip nodejs yarn npm gdb make cmake pkg-config
 

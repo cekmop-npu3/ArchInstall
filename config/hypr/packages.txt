@@ -1,0 +1,9 @@
+xorg-xwayland wayland wayland-protocols xdg-desktop-portal-hyprland xdg-desktop-portal-gtk xdg-utils uwsm libnewt
+
+hyprland hyprlock hyprpaper hyprpicker hyprshot waybar
+
+networkmanager network-manager-applet bluez bluez-utils blueman
+
+pipewire pipewire-pulse pipewire-alsa pipewire-jack wireplumber sof-firmware mesa mesa-utils vulkan-intel
+
+alacritty copyq rofi nautilus btop brightnessctl pavucontrol ttf-jetbrains-mono-nerd

@@ -8,6 +8,14 @@ function M.setup()
         end
     end
 
+    local function clear_search_and_equalize_then(keys)
+        return function()
+            vim.cmd("nohlsearch")
+            vim.cmd("wincmd =")
+            return vim.api.nvim_replace_termcodes(keys, true, false, true)
+        end
+    end
+
     vim.keymap.set({"n", "v"}, "K", "H", { desc = "Cursor to screen top" })
     vim.keymap.set({"n", "v"}, "J", "L", { desc = "Cursor to screen bottom" })
     vim.keymap.set({ "n", "v" }, "W", "b", { desc = "Backward to start of word" })
@@ -16,7 +24,8 @@ function M.setup()
     vim.keymap.set({ "n", "v" }, "<leader>j", "G", { desc = "Go to file end" })
     vim.keymap.set("n", "<leader><Tab>", ":tabn<CR>", { desc = "Next tab" })
     vim.keymap.set("n", "<leader><S-Tab>", ":tabp<CR>", { desc = "Previous tab" })
-    vim.keymap.set({ "n", "i", "x", "s", "c" }, "<Esc>", clear_search_then("<Esc>"), { expr = true, desc = "Escape and clear search highlight" })
+    vim.keymap.set("n", "<Esc>", clear_search_and_equalize_then("<Esc>"), { expr = true, desc = "Escape, clear search highlight, and equalize windows" })
+    vim.keymap.set({ "i", "x", "s", "c" }, "<Esc>", clear_search_then("<Esc>"), { expr = true, desc = "Escape and clear search highlight" })
     vim.keymap.set("t", "<Esc>", "<C-\\><C-n><cmd>nohlsearch<CR>", { desc = "Exit terminal mode and clear search highlight" })
     vim.keymap.set({"n", "v"}, "<C-j>", "<C-d>zz", { desc = "Half-page down and center" })
     vim.keymap.set({"n", "v"}, "<C-k>", "<C-u>zz", { desc = "Half-page up and center" })

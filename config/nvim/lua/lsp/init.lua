@@ -20,6 +20,7 @@ function M.setup()
     vim.lsp.enable("lua_ls")
     vim.lsp.enable("bashls")
     vim.lsp.enable("pylsp")
+    vim.lsp.enable("neocmake")
 end
 
 return M

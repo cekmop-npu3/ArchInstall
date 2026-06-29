@@ -6,6 +6,15 @@ function M.setup()
         return
     end
 
+    local function show_macro_recording()
+        local recording_register = vim.fn.reg_recording()
+        if recording_register == "" then
+            return ""
+        else
+            return "Recording @" .. recording_register
+        end
+    end
+
     lualine.setup({
         options = {
             theme = "auto",
@@ -18,6 +27,10 @@ function M.setup()
             lualine_a = { "mode" },
             lualine_b = { "branch", "diff", "diagnostics" },
             lualine_c = {
+                {
+                    show_macro_recording,
+                    color = { fg = "#ff9e64" },
+                },
                 {
                     "filename",
                     path = 1,

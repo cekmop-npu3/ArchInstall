@@ -6,5 +6,10 @@ bold = { family = "JetBrainsMono Nerd Font", style = "Bold" }
 italic = { family = "JetBrainsMono Nerd Font", style = "Italic" }
 bold_italic = { family = "JetBrainsMono Nerd Font", style = "Bold Italic" }
 size = 13
+[keyboard]
+bindings = [
+    { key = "Space", mods = "Control|Shift", action = "ToggleViMode" },
+    { key = "Escape", mode = "Vi", action = "ToggleViMode" }
+]
 [terminal]
 shell = "/usr/bin/zsh"

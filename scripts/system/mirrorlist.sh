@@ -2,10 +2,15 @@
 
 set -euo pipefail
 
+readonly NO_FILESYSTEM=1
+readonly MM_ROOT_DIR_INVALID=2
+
+[[ -n "${ROOT_DIR:-}" ]] || echo "ROOT_DIR env variable is not set" && return $MM_ROOT_DIR_INVALID
+
+[[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || echo "ROOT_DIR is invalid" && return $MM_ROOT_DIR_INVALID
+
 source "$ROOT_DIR/scripts/utils/utils.sh"
 source "$ROOT_DIR/scripts/utils/parse_options.sh"
-
-readonly NO_FILESYSTEM=1
 
 function usage () {
     cat <<EOF
@@ -17,6 +22,7 @@ Options:
 
 Error codes:
  NO_FILESYSTEM=1            Filesystem is not mounted
+ IP_ROOT_DIR_INVALID=2      Invalid ROOT_DIR environment variable
 EOF
     exit 0
 }
@@ -37,6 +43,7 @@ function eval_script_options () {
 }
 
 function update_mirrorlist () {
+    # TODO: Return error code on failed is_running_in_iso call
     is_running_in_iso && ( findmnt -R /mnt &>/dev/null || echo "Filesystem is not mounted" && return $NO_FILESYSTEM; )
     reflector \
         --country Netherlands,Germany,France,Belgium \

@@ -1,10 +1,10 @@
 #!/usr/bin/bash
 
-readonly HP_ROOT_DIR_INVALID=3
+readonly RF_ROOT_DIR_INVALID=3
 
-[[ -n "${ROOT_DIR:-}" ]] || echo "ROOT_DIR env variable is not set" && return $HP_ROOT_DIR_INVALID
+[[ -n "${ROOT_DIR:-}" ]] || echo "ROOT_DIR env variable is not set" && return $RF_ROOT_DIR_INVALID
 
-[[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || echo "ROOT_DIR is invalid" && return $HP_ROOT_DIR_INVALID
+[[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || echo "ROOT_DIR is invalid" && return $RF_ROOT_DIR_INVALID
 
 function delete () {
     $ROOT_DIR/scripts/system/install_packages.sh --file packages.txt --delete <<< $PASSWORD || return $?

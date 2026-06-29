@@ -2,13 +2,18 @@
 
 set -euo pipefail
 
-source "$ROOT_DIR/scripts/utils/utils.sh"
-source "$ROOT_DIR/scripts/utils/parse_options.sh"
-
 readonly INVALID_USERNAME=1
 readonly INVALID_PASSWORD=2
 readonly ADDUSER_INVALID_OPTIONS=3
 readonly NO_FILESYSTEM=4
+readonly AU_ROOT_DIR_INVALID=5
+
+[[ -n "${ROOT_DIR:-}" ]] || echo "ROOT_DIR env variable is not set" && return $AU_ROOT_DIR_INVALID
+
+[[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || echo "ROOT_DIR is invalid" && return $AU_ROOT_DIR_INVALID
+
+source "$ROOT_DIR/scripts/utils/utils.sh"
+source "$ROOT_DIR/scripts/utils/parse_options.sh"
 
 declare -i is_interactive=1
 
@@ -29,6 +34,7 @@ Exit codes:
  INVALID_PASSWORD=2                       Password is empty or passwords don't match
  ADDUSER_INVALID_OPTIONS=3                Invalid options passed to $script_name
  NO_FILESYSTEM=4                          Filesystem is not mounted
+ AU_ROOT_DIR_INVALID=5              Invalid ROOT_DIR environment variable
 EOF
     exit 0
 }
@@ -57,7 +63,7 @@ function eval_script_options () {
 }
 
 function input_username () {
-    read -rp "Enter your username. Default is root: " username
+    read -rp "Enter your username: " username
 }
 
 function input_password () {

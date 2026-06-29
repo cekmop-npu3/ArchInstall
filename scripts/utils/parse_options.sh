@@ -1,7 +1,5 @@
 #!/usr/bin/bash
 
-source "$ROOT_DIR/scripts/utils/make_sourced.sh"
-
 readonly INVALID_OPTIONS=1
 readonly INVALID_SHORT_OPT=2
 readonly INVALID_LONG_OPT=3
@@ -16,6 +14,13 @@ readonly INVALID_CALLBACK=11
 readonly INVALID_COMBINATION=12
 readonly INVALID_ARRAY_REF=13
 readonly INVALID_VAR_NAME=14
+readonly PO_ROOT_DIR_INVALID=15
+
+[[ -n "${ROOT_DIR:-}" ]] || echo "ROOT_DIR env variable is not set" && return $PO_ROOT_DIR_INVALID
+
+[[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || echo "ROOT_DIR is invalid" && return $PO_ROOT_DIR_INVALID
+
+source "$ROOT_DIR/scripts/utils/make_sourced.sh"
 
 # Parameters:
 #  $1 -> array(declare -A|-a)

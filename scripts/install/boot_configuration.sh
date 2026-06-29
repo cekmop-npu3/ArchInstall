@@ -2,10 +2,15 @@
 
 set -euo pipefail
 
+readonly NO_FILESYSTEM=1
+readonly BC_ROOT_DIR_INVALID=2
+
+[[ -n "${ROOT_DIR:-}" ]] || echo "ROOT_DIR env variable is not set" && return $BC_ROOT_DIR_INVALID
+
+[[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || echo "ROOT_DIR is invalid" && return $BC_ROOT_DIR_INVALID
+
 source "$ROOT_DIR/scripts/utils/parse_options.sh"
 source "$ROOT_DIR/scripts/utils/utils.sh"
-
-readonly NO_FILESYSTEM=1
 
 function usage () {
     cat <<EOF
@@ -17,6 +22,7 @@ Options:
 
 Error codes:
  NO_FILESYSTEM=1            Filesystem is not mounted or $script_name is not running in live environment
+ BC_ROOT_DIR_INVALID=2      Invalid ROOT_DIR environment variable
 EOF
     exit 0
 }

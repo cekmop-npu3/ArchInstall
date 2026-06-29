@@ -2,9 +2,6 @@
 
 set -euo pipefail
 
-source "$ROOT_DIR/scripts/utils/parse_options.sh"
-source "$ROOT_DIR/scripts/utils/utils.sh"
-
 readonly INSUFFICIENT_DISK_SIZE=1
 readonly INVALID_PARTITION=2
 readonly INVALID_DISK_NAME=3
@@ -13,6 +10,14 @@ readonly INSUFFICIENT_ROOT_SIZE=5
 readonly INVALID_NUMBER=6
 readonly INVALID_PASSWORD=7
 readonly DF_INVALID_OPTIONS=8
+readonly DF_ROOT_DIR_INVALID=9
+
+[[ -n "${ROOT_DIR:-}" ]] || echo "ROOT_DIR env variable is not set" && return $DF_ROOT_DIR_INVALID
+
+[[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || echo "ROOT_DIR is invalid" && return $DF_ROOT_DIR_INVALID
+
+source "$ROOT_DIR/scripts/utils/parse_options.sh"
+source "$ROOT_DIR/scripts/utils/utils.sh"
 
 readonly default_partition_table="GPT"
 readonly volume_group="vg"
@@ -49,6 +54,7 @@ Exit codes:
  INVALID_NUMBER=6                             Nan was passed as a parameter
  INVALID_PASSWORD=7                           Password is empty or passwords don't match
  DF_INVALID_OPTIONS=8                         Invalid options passed to $script_name
+ DF_ROOT_DIR_INVALID=9                        Invalid ROOT_DIR environment variable
 EOF
     exit 0
 }

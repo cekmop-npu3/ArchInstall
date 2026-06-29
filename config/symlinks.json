@@ -7,23 +7,28 @@
         },
         {
             "target": "$ROOT_DIR/config/copyq",
-            "link": "~/.config/copyq"
+            "link": "~/.config/copyq",
+            "setup": "$ROOT_DIR/config/copyq/setup.sh"
         },
         {
             "target": "$ROOT_DIR/config/hypr",
-            "link": "~/.config/hypr"
+            "link": "~/.config/hypr",
+            "setup": "$ROOT_DIR/config/hypr/setup.sh"
         },
         {
             "target": "$ROOT_DIR/config/nvim",
-            "link": "~/.config/nvim"
+            "link": "~/.config/nvim",
+            "setup": "$ROOT_DIR/config/nvim/setup.sh"
         },
         {
             "target": "$ROOT_DIR/config/waybar",
-            "link": "~/.config/waybar"
+            "link": "~/.config/waybar",
+            "setup": "$ROOT_DIR/config/waybar/setup.sh"
         },
         {
             "target": "$ROOT_DIR/config/rofi",
-            "link": "~/.config/rofi"
+            "link": "~/.config/rofi",
+            "setup": "$ROOT_DIR/config/rofi/setup.sh"
         },
         {
             "target": "$ROOT_DIR/config/rofi/themes",
@@ -31,7 +36,8 @@
         },
         {
             "target": "$ROOT_DIR/config/btop",
-            "link": "~/.config/btop"
+            "link": "~/.config/btop",
+            "setup": "$ROOT_DIR/config/btop/setup.sh"
         },
         {
             "target": "$ROOT_DIR/config/gtk-3.0",
@@ -42,11 +48,21 @@
             "link": "~/.config/gtk-4.0"
         },
         {
-            "target": "$ROOT_DIR/config/bashrc",
+            "target": "$ROOT_DIR/config/zsh/zshrc.sh",
+            "link": "~/.zshrc",
+            "setup": "$ROOT_DIR/config/zsh/setup.sh"
+        },
+        {
+            "target": "$ROOT_DIR/config/zsh/zsh_profile.zsh",
+            "link": "~/.zsh_profile"
+        },
+
+        {
+            "target": "$ROOT_DIR/config/bash/bashrc.sh",
             "link": "~/.bashrc"
         },
         {
-            "target": "$ROOT_DIR/config/bash_profile",
+            "target": "$ROOT_DIR/config/bash/bash_profile.sh",
             "link": "~/.bash_profile"
         }
     ]

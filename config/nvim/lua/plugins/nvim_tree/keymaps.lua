@@ -15,6 +15,7 @@ function M.on_attach(bufnr)
     end
 
     vim.keymap.set("n", "<C-h>", api.node.open.horizontal, opts("Open: Horizontal Split"))
+    vim.keymap.set("n", "n", api.fs.create, opts("Create File Or Directory"))
     vim.keymap.set("n", "rb", api.fs.rename_basename, opts("Rename: Basename"))
     vim.keymap.set("n", "rp", api.fs.rename_full, opts("Rename: Full Path"))
     vim.keymap.set("n", ".", api.filter.dotfiles.toggle, opts("Toggle Filter: Dotfiles"))

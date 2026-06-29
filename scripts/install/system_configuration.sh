@@ -1,12 +1,17 @@
 #!/usr/bin/bash
 
-source "$ROOT_DIR/scripts/utils/utils.sh"
-source "$ROOT_DIR/scripts/utils/parse_options.sh"
-
 readonly INVALID_TIMEZONE=1
 readonly INVALID_HOSTNAME=2
 readonly SYSCFG_INVALID_OPTIONS=3
 readonly WRONG_ENV=4
+readonly SC_ROOT_DIR_INVALID=5
+
+[[ -n "${ROOT_DIR:-}" ]] || echo "ROOT_DIR env variable is not set" && return $SC_ROOT_DIR_INVALID
+
+[[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || echo "ROOT_DIR is invalid" && return $SC_ROOT_DIR_INVALID
+
+source "$ROOT_DIR/scripts/utils/utils.sh"
+source "$ROOT_DIR/scripts/utils/parse_options.sh"
 
 declare -i is_interactive=1
 
@@ -27,6 +32,7 @@ Error codes:
  INVALID_HOSTNAME=2
  SYSCFG_INVALID_OPTIONS=3          Invalid options passed to $script_name
  WRONG_ENV=4                       Script must be ran in live environment
+ SC_ROOT_DIR_INVALID=5             Invalid ROOT_DIR environment variable
 EOF
     exit 0
 }

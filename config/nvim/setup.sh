@@ -1,70 +1,27 @@
 #!/usr/bin/bash
 
-set -euo pipefail
+readonly NV_ROOT_DIR_INVALID=3
 
-source "$ROOT_DIR/scripts/utils/utils.sh"
-source "$ROOT_DIR/scripts/utils/parse_options.sh"
+[[ -n "${ROOT_DIR:-}" ]] || echo "ROOT_DIR env variable is not set" && return $NV_ROOT_DIR_INVALID
 
-readonly NVIM_INVALID_OPTIONS=1
-readonly PACMAN_ERROR=2
-readonly ROOT_ERROR=3
-
-declare -ar packages=(
-    "git" 
-    "nodejs"
-    "npm"
-    "python-pipx"
-    "python-lsp-server"
-)
-
-function usage () {
-    cat <<EOF
-Usage:
- $script_name [options]
-
-Options:
- -d, --delete       To uninstall all of the dependencies
- -h, --help         Show this help
-
-Error codes:
- NVIM_INVALID_OPTIONS=1      Invalid options passed to $script_name
- PACMAN_ERROR=2              Error during package installation
-EOF
-    exit 0
-}
+[[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || echo "ROOT_DIR is invalid" && return $NV_ROOT_DIR_INVALID
 
 function delete () {
-    pacman --noconfirm -Rnus ${packages[@]} || return $?
+    $ROOT_DIR/scripts/system/install_packages.sh --file packages.txt --delete <<< $PASSWORD || return $?
     rm -rf ~/neovim
     rm -rf ~/lua-language-server
     exit 0
 }
 
-function eval_script_options () {
-    declare -a script_options=("$@")
-
-    declare -A opt1 opt2
-    create_option --long-option="help" --short-option="h" --callback=usage --early opt1
-    create_option --long-option="delete" --short-option="d" --callback=delete opt2
-
-    declare -A usage1
-    set_usage usage1 opt1 opt2
-
-    declare -A response
-    handle_usages response script_options usage1 || echo "Invalid options passed to $script_name" && return $NVIM_INVALID_OPTIONS
-
-    invoke_callbacks response
-}
-
 function install () {
-    pacman --noconfirm --needed -Syu ${packages[@]} || return $?
-    npm i -g bash-language-server
+    $ROOT_DIR/scripts/system/install_packages.sh --file packages.txt <<< $PASSWORD || return $?
+    sudo npm i -g bash-language-server <<< $PASSWORD || return $?
 
     git clone --branch release-0.12 https://github.com/neovim/neovim.git ~/neovim
     (
         cd ~/neovim
         make CMAKE_BUILD_TYPE=RelWithDebInfo
-        sudo make install
+        sudo make install <<< $PASSWORD
     )
 
     git clone https://github.com/LuaLS/lua-language-server ~/lua-language-server
@@ -75,11 +32,5 @@ function install () {
     )
 }
 
-function main () {
-    [ "$(id -u)" -neq 0 ] && echo "$script_name must be run as a root" && return $ROOT_ERROR
-    ! is_running_in_iso || return $?
+source "$ROOT_DIR/scripts/utils/setup.sh"
 
-    eval_script_options "$@" || return $?
-
-    install || echo "An error occured during installation" && return $PACMAN_ERROR  
-}

@@ -107,7 +107,7 @@ function M.on_lsp_attach(ev, client)
 
     if client:supports_method("textDocument/typeDefinition") then
         if type(builtin.lsp_type_definitions) == "function" then
-            vim.keymap.set("n", "<leader>t", with_picker_opts(builtin.lsp_type_definitions, lsp_picker_opts), vim.tbl_extend("force", opts, { desc = "LSP type definitions" }))
+            vim.keymap.set("n", "<leader>dt", with_picker_opts(builtin.lsp_type_definitions, lsp_picker_opts), vim.tbl_extend("force", opts, { desc = "LSP type definitions" }))
         end
     end
 
