@@ -52,7 +52,7 @@ function eval_script_options () {
     set_usage usage2 opt3 opt2
 
     declare -A response
-    handle_usages response script_options usage1 usage2 || echo "Invalid options passed to $script_name" && return $SELFDEPLOY_INVALID_OPTIONS
+    handle_usages response script_options usage1 usage2 || { echo "Invalid options passed to $script_name"; return $SELFDEPLOY_INVALID_OPTIONS; }
 
     invoke_callbacks response
 }
@@ -72,7 +72,7 @@ function check_username () {
 
 function copy () {
     # TODO: Return error code on failed is_running_in_iso call
-    is_running_in_iso && ( findmnt -R /mnt &>/dev/null || echo "Filesystem is not mounted" && return $NO_FILESYSTEM; )
+    is_running_in_iso && { findmnt -R /mnt &>/dev/null || { echo "Filesystem is not mounted"; return $NO_FILESYSTEM; }; }
 
     # TODO: Check if ROOT_DIR fits that expression
     : ' script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"

@@ -48,7 +48,7 @@ function eval_script_options () {
     set_usage usage1 opt1 opt2
 
     declare -A response
-    handle_usages response script_options usage1 || echo "Invalid options passed to $script_name" && return $INVALID_OPTIONS
+    handle_usages response script_options usage1 || { echo "Invalid options passed to $script_name"; return $INVALID_OPTIONS; }
 
     invoke_callbacks response
 }

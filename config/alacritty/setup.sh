@@ -8,8 +8,6 @@ readonly AL_ROOT_DIR_INVALID=3
 
 function delete () {
     $ROOT_DIR/scripts/system/install_packages.sh --file packages.txt --delete <<< $PASSWORD || return $?
-    rm -rf ~/neovim
-    rm -rf ~/lua-language-server
     exit 0
 }
 

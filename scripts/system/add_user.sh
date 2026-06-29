@@ -57,7 +57,7 @@ function eval_script_options () {
     set_usage usage2 opt3 opt4
 
     declare -A response
-    handle_usages response script_options usage1 usage2 || echo "Invalid options passed to $script_name" && return $ADDUSER_INVALID_OPTIONS
+    handle_usages response script_options usage1 usage2 || { echo "Invalid options passed to $script_name"; return $ADDUSER_INVALID_OPTIONS; }
 
     invoke_callbacks response
 }
@@ -101,7 +101,7 @@ echo \"%wheel ALL=(ALL:ALL) ALL\" > /etc/sudoers.d/10-wheel
 chmod 0440 /etc/sudoers.d/10-wheel
 "
     if is_running_in_iso; then
-        ( findmnt -R /mnt &>/dev/null || echo "Filesystem is not mounted" && return $NO_FILESYSTEM; ) && arch-chroot /mnt &>/dev/null <<< "$commands"
+        { findmnt -R /mnt &>/dev/null || { echo "Filesystem is not mounted"; return $NO_FILESYSTEM; }; } && arch-chroot /mnt &>/dev/null <<< "$commands"
     else
         bash -c "$commands"
     fi

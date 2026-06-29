@@ -48,7 +48,7 @@ function eval_script_options () {
     set_usage usage1 opt1 opt2 opt3
 
     declare -A response
-    handle_usages response script_options usage1 || echo "Invalid options passed to $script_name" && return $INSTALLPKG_INVALID_OPTIONS
+    handle_usages response script_options usage1 || { echo "Invalid options passed to $script_name"; return $INSTALLPKG_INVALID_OPTIONS; }
 
     invoke_callbacks response
 }
@@ -63,19 +63,19 @@ function install_packages () {
             echo "Cannot delete packages using pacstrap"
             return $INSTALLPKG_INVALID_OPTIONS
         fi
-        ( findmnt -R /mnt &>/dev/null || echo "Filesystem is not mounted" && return $NO_FILESYSTEM; ) && pacstrap -K /mnt "${packages[@]}" || echo "Wrong package name" && return $PACKAGE_ERROR
+        { findmnt -R /mnt &>/dev/null || { echo "Filesystem is not mounted"; return $NO_FILESYSTEM; }; } && { pacstrap -K /mnt "${packages[@]}" || { echo "Wrong package name"; return $PACKAGE_ERROR; }; }
     else
         if [[ "${delete:-}" ]]; then
-            ( ( [ "$(id -u)" -eq 0 ] && pacman -Runs "${packages[@]}"; ) || sudo pacman -Runs "${packages[@]}"; ) || echo "Wrong package name" && return $PACKAGE_ERROR
+            { [ "$(id -u)" -eq 0 ] && pacman -Runs "${packages[@]}"; } || sudo pacman -Runs "${packages[@]}" || { echo "Wrong package name"; return $PACKAGE_ERROR; }
         else
-            ( ( [ "$(id -u)" -eq 0 ] && pacman -Syu "${packages[@]}"; ) || sudo pacman -Syu "${packages[@]}"; ) || echo "Wrong package name" && return $PACKAGE_ERROR
+            { [ "$(id -u)" -eq 0 ] && pacman -Syu "${packages[@]}"; } || sudo pacman -Syu "${packages[@]}" || { echo "Wrong package name"; return $PACKAGE_ERROR; }
         fi
     fi
 }
 
 function main () {
     eval_script_options "$@" || return $?
-    [[ -e "${file:-}" ]] || echo "File to parse dependencies not found" && return $NO_FILE
+    [[ -e "${file:-}" ]] || { echo "File to parse dependencies not found"; return $NO_FILE; }
 
     # Update mirrorlist
     "$ROOT_DIR/scripts/system/mirrorlist.sh" || return $?

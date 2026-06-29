@@ -55,7 +55,7 @@ function eval_script_options () {
     set_usage usage2 opt3 opt4
 
     declare -A response
-    handle_usages response script_options usage1 usage2 || echo "Invalid options passed to $script_name" && return $SYSCFG_INVALID_OPTIONS
+    handle_usages response script_options usage1 usage2 || { echo "Invalid options passed to $script_name"; return $SYSCFG_INVALID_OPTIONS; }
 
     invoke_callbacks response
 }
@@ -123,7 +123,7 @@ function install_essentials () {
 
 function main () {
     eval_script_options "$@" || return $?
-    is_running_in_iso || echo "$script_name must be running in live environment" && return $WRONG_ENV
+    is_running_in_iso || { echo "$script_name must be running in live environment"; return $WRONG_ENV; }
 
     install_essentials || return $?
 
