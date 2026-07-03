@@ -10,6 +10,7 @@ readonly INVALID_TARGET=5
 readonly NOT_ABSOLUTE_PATH=6
 readonly INVALID_SYMLINK=7
 readonly SS_ROOT_DIR_INVALID=8
+readonly INVALID_SETUP_SCRIPT=9
 
 [[ -n "${ROOT_DIR:-}" ]] || { echo "ROOT_DIR env variable is not set"; return $SS_ROOT_DIR_INVALID; }
 
@@ -111,6 +112,7 @@ function check_action () {
 
 function check_dependencies () {
     if ! command -v jq &>/dev/null; then
+        echo "jq command is missing"
         return $MISSING_DEPENDENCY
     fi
 }
@@ -123,32 +125,34 @@ function parse_config_file () {
     local target link force
     for symlink in "${symlinks[@]}"; do
         target="$(echo "$symlink" | jq --tab --raw-output --exit-status '.["target"]')" || return $INVALID_TARGET
-        [[ "$target" == "~"* ]] && target="${target/#\~/$HOME}"
+        target="$(eval echo "$target")"
         { [[ -n "$target" ]] && [[ "${target:0:1}" == "/" ]]; } || return $NOT_ABSOLUTE_PATH
         if [[ "$action" == "create" ]] && ! [[ -e "$target" ]]; then
             return $NOT_ABSOLUTE_PATH
         fi
         link="$(echo "$symlink" | jq --tab --raw-output --exit-status '.["link"]')" || return $INVALID_SYMLINK
-        [[ "$link" == "~"* ]] && link="${link/#\~/$HOME}"
+        link="$(eval echo "$link")"
         { [[ -n "$link" ]] && [[ "${link:0:1}" == "/" ]]; } || return $NOT_ABSOLUTE_PATH
         setup_script="$(echo "$symlink" | jq --tab --raw-output '.["setup"]')"
-        [[ "$setup_script" == "~"* ]] && setup_script="${setup_script/#\~/$HOME}"
+        setup_script="$(eval echo "$setup_script")"
 
         case "$action" in
             (create)
                 mkdir -p "$(dirname "$link")"
                 ln -sfn "$target" "$link" &>/dev/null || return $INVALID_SYMLINK
+                echo "Successfully created symlink $link to target $target"
                 if [[ "$setup_script" != "null" ]]; then
-                    [[ -x "$setup_script" ]] || return $INVALID_SYMLINK
+                    [[ -x "$setup_script" ]] || return $INVALID_SETUP_SCRIPT
                     "$setup_script" <<< "$password" || return $?
                 fi
             ;;
             (delete)
+                { [[ -L "$link" ]] && unlink "$link" &>/dev/null; } || return $INVALID_SYMLINK
+                echo "Successfully deleted symlink $link"
                 if [[ "$setup_script" != "null" ]]; then
-                    [[ -x "$setup_script" ]] || return $INVALID_SYMLINK
+                    [[ -x "$setup_script" ]] || return $INVALID_SETUP_SCRIPT
                     "$setup_script" --delete <<< "$password" || return $?
                 fi
-                { [[ -L "$link" ]] && unlink "$link" &>/dev/null; } || return $INVALID_SYMLINK
             ;;
         esac
     done

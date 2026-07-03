@@ -7,14 +7,14 @@ readonly NV_ROOT_DIR_INVALID=3
 [[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || { echo "ROOT_DIR is invalid"; return $NV_ROOT_DIR_INVALID; }
 
 function delete () {
-    $ROOT_DIR/scripts/system/install_packages.sh --file packages.txt --delete <<< $PASSWORD || return $?
+    $ROOT_DIR/scripts/system/install_packages.sh --file $ROOT_DIR/config/nvim/setup.sh --delete <<< $PASSWORD || return $?
     rm -rf ~/neovim
     rm -rf ~/lua-language-server
     exit 0
 }
 
 function install () {
-    $ROOT_DIR/scripts/system/install_packages.sh --file packages.txt <<< $PASSWORD || return $?
+    $ROOT_DIR/scripts/system/install_packages.sh --file $ROOT_DIR/config/nvim/setup.sh <<< $PASSWORD || return $?
     sudo npm i -g bash-language-server <<< $PASSWORD || return $?
 
     git clone --branch release-0.12 https://github.com/neovim/neovim.git ~/neovim
