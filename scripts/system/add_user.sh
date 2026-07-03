@@ -34,7 +34,7 @@ Exit codes:
  INVALID_PASSWORD=2                       Password is empty or passwords don't match
  ADDUSER_INVALID_OPTIONS=3                Invalid options passed to $script_name
  NO_FILESYSTEM=4                          Filesystem is not mounted
- AU_ROOT_DIR_INVALID=5              Invalid ROOT_DIR environment variable
+ AU_ROOT_DIR_INVALID=5                    Invalid ROOT_DIR environment variable
 EOF
     exit 0
 }

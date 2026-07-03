@@ -54,7 +54,7 @@
         },
         {
             "target": "$ROOT_DIR/config/zsh/zsh_profile.zsh",
-            "link": "~/.zsh_profile"
+            "link": "~/.zprofile"
         },
 
         {

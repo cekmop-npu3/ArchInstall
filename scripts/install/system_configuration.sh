@@ -118,7 +118,7 @@ EOF
 }
 
 function install_essentials () {
-    "$ROOT_DIR/scripts/system/install_packages.sh" --file packages.txt || return $?
+    "$ROOT_DIR/scripts/system/install_packages.sh" --file $ROOT_DIR/scripts/install/packages.txt || return $?
 }
 
 function main () {

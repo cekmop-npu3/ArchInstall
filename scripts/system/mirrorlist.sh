@@ -2,8 +2,7 @@
 
 set -euo pipefail
 
-readonly NO_FILESYSTEM=1
-readonly MM_ROOT_DIR_INVALID=2
+readonly MM_ROOT_DIR_INVALID=1
 
 [[ -n "${ROOT_DIR:-}" ]] || { echo "ROOT_DIR env variable is not set"; exit $MM_ROOT_DIR_INVALID; }
 
@@ -21,8 +20,7 @@ Options:
  -h, --help                 Show this help
 
 Error codes:
- NO_FILESYSTEM=1            Filesystem is not mounted
- IP_ROOT_DIR_INVALID=2      Invalid ROOT_DIR environment variable
+ IP_ROOT_DIR_INVALID=1      Invalid ROOT_DIR environment variable
 EOF
     exit 0
 }
@@ -43,20 +41,18 @@ function eval_script_options () {
 }
 
 function update_mirrorlist () {
-    # TODO: Return error code on failed is_running_in_iso call
-    is_running_in_iso && ( findmnt -R /mnt &>/dev/null || echo "Filesystem is not mounted" && return $NO_FILESYSTEM; )
     reflector \
         --country Netherlands,Germany,France,Belgium \
         --protocol https \
         --age 24 \
         --sort rate \
         --latest 20 \
-        --save "$( ( is_running_in_iso && echo "/mnt/etc/pacman.d/mirrorlist"; ) || echo "/etc/pacman.d/mirrorlist" )"
+        --save $( { { is_running_in_iso && findmnt -R /mnt &>/dev/null; } && echo "/mnt/etc/pacman.d/mirrorlist"; } || echo "/etc/pacman.d/mirrorlist")
 }
 
 function main() {
     eval_script_options "$@" || return $?
-    update_mirrorlist
+    update_mirrorlist || return $?
 }
 
 main "$@"

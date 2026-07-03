@@ -6,6 +6,7 @@ readonly NO_FILE=1
 readonly INSTALLPKG_INVALID_OPTIONS=2
 readonly NO_FILESYSTEM=3
 readonly IP_ROOT_DIR_INVALID=4
+readonly PACKAGE_ERROR=5
 
 [[ -n "${ROOT_DIR:-}" ]] || { echo "ROOT_DIR env variable is not set"; exit $IP_ROOT_DIR_INVALID; }
 
@@ -29,6 +30,7 @@ Error codes:
  INSTALLPKG_INVALID_OPTIONS=2       Invalid options passed to $script_name
  NO_FILESYSTEM=3                    Filesystem is not mounted
  IP_ROOT_DIR_INVALID=4              Invalid ROOT_DIR environment variable
+ PACKAGE_ERROR=5                    Unknown error during package installation
 EOF
     exit 0
 }

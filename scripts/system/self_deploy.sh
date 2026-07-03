@@ -71,12 +71,8 @@ function check_username () {
 }
 
 function copy () {
-    # TODO: Return error code on failed is_running_in_iso call
     is_running_in_iso && { findmnt -R /mnt &>/dev/null || { echo "Filesystem is not mounted"; return $NO_FILESYSTEM; }; }
 
-    # TODO: Check if ROOT_DIR fits that expression
-    : ' script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-    local install_root="$(cd "$script_dir/../.." && pwd -P)" '
     local install_root="$ROOT_DIR"
     local target_uid=$(grep "^$username:" "$( ( is_running_in_iso && echo "/mnt/etc/passwd"; ) || echo "/etc/passwd" )" | cut -d: -f3)
     local target_gid=$(grep "^$username:" "$( ( is_running_in_iso && echo "/mnt/etc/group"; ) || echo "/etc/group" )" | cut -d: -f3)
