@@ -47,7 +47,7 @@ function update_mirrorlist () {
         --age 24 \
         --sort rate \
         --latest 20 \
-        --save $( { { is_running_in_iso && findmnt -R /mnt &>/dev/null; } && echo "/mnt/etc/pacman.d/mirrorlist"; } || echo "/etc/pacman.d/mirrorlist")
+        --save $( { { is_running_in_iso && findmnt -R /mnt &>/dev/null && [[ -e "/mnt/etc/arch-release" ]]; } && echo "/mnt/etc/pacman.d/mirrorlist"; } || echo "/etc/pacman.d/mirrorlist")
 }
 
 function main() {

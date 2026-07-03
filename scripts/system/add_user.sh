@@ -101,7 +101,7 @@ echo \"%wheel ALL=(ALL:ALL) ALL\" > /etc/sudoers.d/10-wheel
 chmod 0440 /etc/sudoers.d/10-wheel
 "
     if is_running_in_iso; then
-        { findmnt -R /mnt &>/dev/null || { echo "Filesystem is not mounted"; return $NO_FILESYSTEM; }; } && arch-chroot /mnt &>/dev/null <<< "$commands"
+        { { findmnt -R /mnt &>/dev/null && [[ -e "/mnt/etc/arch-release" ]]; } || { echo "Filesystem is not mounted"; return $NO_FILESYSTEM; }; } && arch-chroot /mnt &>/dev/null <<< "$commands"
     else
         bash -c "$commands"
     fi

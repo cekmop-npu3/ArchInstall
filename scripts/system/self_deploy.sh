@@ -71,7 +71,7 @@ function check_username () {
 }
 
 function copy () {
-    is_running_in_iso && { findmnt -R /mnt &>/dev/null || { echo "Filesystem is not mounted"; return $NO_FILESYSTEM; }; }
+    is_running_in_iso && { { findmnt -R /mnt &>/dev/null && [[ -e "/mnt/etc/arch-release" ]]; } || { echo "Filesystem is not mounted"; return $NO_FILESYSTEM; }; }
 
     local install_root="$ROOT_DIR"
     local target_uid=$(grep "^$username:" "$( ( is_running_in_iso && echo "/mnt/etc/passwd"; ) || echo "/etc/passwd" )" | cut -d: -f3)

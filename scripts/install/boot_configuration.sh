@@ -43,7 +43,7 @@ function eval_script_options () {
 }
 
 function check_filesystem () {
-    if ! is_running_in_iso || ! findmnt -R /mnt &>/dev/null; then
+    if ! is_running_in_iso || ! { findmnt -R /mnt &>/dev/null && [[ -e "/mnt/etc/arch-release" ]]; } then
         echo "Filesystem is not mounted or doesn't exist under /mnt"
         return $NO_FILESYSTEM
     fi
