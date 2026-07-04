@@ -6,5 +6,8 @@ chmod +x "$ROOT_DIR"/scripts/install/*.sh
 chmod +x "$ROOT_DIR"/scripts/system/*.sh
 chmod +x "$ROOT_DIR"/scripts/utils/*.sh
 
+chmod +x "$ROOT_DIR"/config/*.sh
+chmod +x "$ROOT_DIR"/config/*/*.sh
+
 source "$ROOT_DIR/scripts/utils/make_sourced.sh"
 

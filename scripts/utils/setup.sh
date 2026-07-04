@@ -26,7 +26,7 @@ Options:
  -h, --help                  Show this help
 
 Error codes:
- ST_INVALID_OPTIONS=1           Invalid options passed to $script_name
+ ST_INVALID_OPTIONS=1        Invalid options passed to $script_name
  PACMAN_ERROR=2              Error during package installation
  ST_ROOT_DIR_INVALID=3       Invalid ROOT_DIR environment variable
 EOF

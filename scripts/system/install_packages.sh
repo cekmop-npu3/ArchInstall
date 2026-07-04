@@ -8,6 +8,8 @@ readonly NO_FILESYSTEM=3
 readonly IP_ROOT_DIR_INVALID=4
 readonly PACKAGE_ERROR=5
 
+readonly PASSWORD=$(</dev/stdin)
+
 [[ -n "${ROOT_DIR:-}" ]] || { echo "ROOT_DIR env variable is not set"; exit $IP_ROOT_DIR_INVALID; }
 
 [[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || { echo "ROOT_DIR is invalid"; exit $IP_ROOT_DIR_INVALID; }
@@ -18,7 +20,7 @@ source "$ROOT_DIR/scripts/utils/parse_options.sh"
 function usage () {
     cat <<EOF
 Usage:
- $script_name [options]
+ $script_name [options] <<< \$PASSWORD
 
 Options:
  -f, --file <file>                  A file to parse dependencies from
@@ -68,9 +70,9 @@ function install_packages () {
         { findmnt -R /mnt &>/dev/null || { echo "Filesystem is not mounted"; return $NO_FILESYSTEM; }; } && { pacstrap -K /mnt "${packages[@]}" || { echo "Wrong package name"; return $PACKAGE_ERROR; }; }
     else
         if [[ "${delete:-}" ]]; then
-            { [ "$(id -u)" -eq 0 ] && pacman -Runs "${packages[@]}"; } || sudo pacman -Runs "${packages[@]}" || { echo "Wrong package name"; return $PACKAGE_ERROR; }
+            { [ "$(id -u)" -eq 0 ] && pacman -Runs "${packages[@]}"; } || sudo --stdin pacman -Runs "${packages[@]}" <<< "$PASSWORD" || { echo "Wrong package name"; return $PACKAGE_ERROR; }
         else
-            { [ "$(id -u)" -eq 0 ] && pacman -Syu "${packages[@]}"; } || sudo pacman -Syu "${packages[@]}" || { echo "Wrong package name"; return $PACKAGE_ERROR; }
+            { [ "$(id -u)" -eq 0 ] && pacman -Syu "${packages[@]}"; } || sudo --stdin pacman -Syu "${packages[@]}" <<< "$PASSWORD" || { echo "Wrong package name"; return $PACKAGE_ERROR; }
         fi
     fi
 }
@@ -78,9 +80,6 @@ function install_packages () {
 function main () {
     eval_script_options "$@" || return $?
     [[ -e "${file:-}" ]] || { echo "File to parse dependencies not found"; return $NO_FILE; }
-
-    # Update mirrorlist
-    "$ROOT_DIR/scripts/system/mirrorlist.sh" || return $?
 
     install_packages || return $?
 }
