@@ -17,5 +17,5 @@ function install () {
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --keep-zshrc --unattended
 }
 
-source "$ROOT_DIR/scripts/utils/packages.sh"
+source "$ROOT_DIR/scripts/utils/setup.sh"
 

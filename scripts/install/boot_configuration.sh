@@ -110,7 +110,7 @@ function configure_grub () {
     arch-chroot /mnt <<< 'grub-mkconfig -o /boot/grub/grub.cfg'
 
     arch-chroot /mnt <<-EOF
-sed -i 's|^[#[:space:]]*GRUB_CMDLINE_LINUX_DEFAULT=.*$|GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet pcie_aspm=off $(lsblk --nvme "$disk" &>/dev/null && echo "nvme_core.default_ps_max_latency_us=0")"|'
+sed -i 's|^[#[:space:]]*GRUB_CMDLINE_LINUX_DEFAULT=.*$|GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet pcie_aspm=off $(lsblk --nvme "$disk" &>/dev/null && echo "nvme_core.default_ps_max_latency_us=0")"|' /etc/default/grub
 EOF
 
     if [[ -n "${luks_uuid:-}" ]]; then

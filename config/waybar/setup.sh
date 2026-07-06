@@ -15,5 +15,5 @@ function install () {
     $ROOT_DIR/scripts/system/install_packages.sh --file $ROOT_DIR/config/waybar/packages.txt <<< $PASSWORD || return $?
 }
 
-source "$ROOT_DIR/scripts/utils/packages.sh"
+source "$ROOT_DIR/scripts/utils/setup.sh"
 

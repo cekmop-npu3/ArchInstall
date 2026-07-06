@@ -15,6 +15,7 @@ readonly INVALID_COMBINATION=12
 readonly INVALID_ARRAY_REF=13
 readonly INVALID_VAR_NAME=14
 readonly PO_ROOT_DIR_INVALID=15
+readonly NO_OPERANDS=16
 
 [[ -n "${ROOT_DIR:-}" ]] || { echo "ROOT_DIR env variable is not set"; exit $PO_ROOT_DIR_INVALID; }
 
@@ -268,5 +269,26 @@ fi
         done
         shift 1
     done
+    response_array["on_operand"] = "true"
 }
 
+# Parameters:
+#  $1 -> response_array(declare -A) from handle_usages
+#  $2 -> operands_array(declare -a)
+function get_operands () {
+    _is_array "$1" true || return $?
+    _is_array "$2" || return $?
+    [[ -n "${response_array['on_operand']:-}" ]] || return $NO_OPERANDS
+
+    local -n response_array="$1"
+    local -n operands_array="$2"
+
+    eval set -- "${response_array['formatted_options']}"
+    while [[ $# -gt 0 && "$1" != "--" ]]; do
+        shift 1
+    done
+    shift 1
+
+    [[ $# -eq 0 ]] || return $NO_OPERANDS
+    operands_array=("$@")
+}

@@ -8,7 +8,7 @@ readonly NO_FILESYSTEM=3
 readonly IP_ROOT_DIR_INVALID=4
 readonly PACKAGE_ERROR=5
 
-readonly PASSWORD=$(</dev/stdin)
+readonly PASSWORD="$( [[ -t 0 ]] || </dev/stdin)"
 
 [[ -n "${ROOT_DIR:-}" ]] || { echo "ROOT_DIR env variable is not set"; exit $IP_ROOT_DIR_INVALID; }
 
@@ -20,7 +20,7 @@ source "$ROOT_DIR/scripts/utils/parse_options.sh"
 function usage () {
     cat <<EOF
 Usage:
- $script_name [options] <<< \$PASSWORD
+ $script_name [options] [packages] <<< \$PASSWORD
 
 Options:
  -f, --file <file>                  A file to parse dependencies from
@@ -45,7 +45,7 @@ function eval_script_options () {
 
     declare -A opt1 opt2 opt3
     create_option --long-option="help" --short-option="h" --callback=usage --early opt1
-    create_option --long-option="file" --short-option="f" --callback=set_file --required --argument="true" opt2
+    create_option --long-option="file" --short-option="f" --callback=set_file --argument="true" opt2
     create_option --long-option="delete" --short-option="d" --callback=on_delete opt3
 
     declare -A usage1
@@ -55,12 +55,20 @@ function eval_script_options () {
     handle_usages response script_options usage1 || { echo "Invalid options passed to $script_name"; return $INSTALLPKG_INVALID_OPTIONS; }
 
     invoke_callbacks response
+
+    declare -a operands
+    local code
+    get_operands response operands || { code=$? ; [[ -n "${file:-}" ]] || return $code; } 
 }
 
 function install_packages () {
-    local string="$(sed 's/#.*$//' "$file")"
     local -a packages
-    mapfile -t packages< <(echo "$string" | grep -oP "\S+")
+    if [[ -n "${file:-}" ]]; then
+        local string="$(sed 's/#.*$//' "$file")"
+        mapfile -t packages< <(echo "$string" | grep -oP "\S+")
+    else
+        packages=("${operands[@]}")
+    fi
 
     if is_running_in_iso; then
         if [[ "${delete:-}" ]]; then
@@ -70,9 +78,9 @@ function install_packages () {
         { findmnt -R /mnt &>/dev/null || { echo "Filesystem is not mounted"; return $NO_FILESYSTEM; }; } && { pacstrap -K /mnt "${packages[@]}" || { echo "Wrong package name"; return $PACKAGE_ERROR; }; }
     else
         if [[ "${delete:-}" ]]; then
-            { [ "$(id -u)" -eq 0 ] && pacman -Runs "${packages[@]}"; } || sudo --stdin pacman -Runs "${packages[@]}" <<< "$PASSWORD" || { echo "Wrong package name"; return $PACKAGE_ERROR; }
+            { [ "$(id -u)" -eq 0 ] && pacman --noconfirm --needed -Runs "${packages[@]}"; } || sudo --stdin pacman --needed --noconfirm -Runs "${packages[@]}" <<< "$PASSWORD" || { echo "Wrong package name"; return $PACKAGE_ERROR; }
         else
-            { [ "$(id -u)" -eq 0 ] && pacman -Syu "${packages[@]}"; } || sudo --stdin pacman -Syu "${packages[@]}" <<< "$PASSWORD" || { echo "Wrong package name"; return $PACKAGE_ERROR; }
+            { [ "$(id -u)" -eq 0 ] && pacman --noconfirm --needed -Syu "${packages[@]}"; } || sudo --stdin pacman --noconfirm --needed -Syu "${packages[@]}" <<< "$PASSWORD" || { echo "Wrong package name"; return $PACKAGE_ERROR; }
         fi
     fi
 }

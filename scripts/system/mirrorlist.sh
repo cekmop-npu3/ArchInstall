@@ -3,6 +3,9 @@
 set -euo pipefail
 
 readonly MM_ROOT_DIR_INVALID=1
+readonly PACKAGE_ERROR=2
+
+readonly PASSWORD="$( [[ -t 0 ]] || </dev/stdin)"
 
 [[ -n "${ROOT_DIR:-}" ]] || { echo "ROOT_DIR env variable is not set"; exit $MM_ROOT_DIR_INVALID; }
 
@@ -40,6 +43,10 @@ function eval_script_options () {
     invoke_callbacks response
 }
 
+function install_dependencies () {
+    $ROOT_DIR/scripts/system/install_packages.sh reflector <<< "$PASSWORD" || return $?
+}
+
 function update_mirrorlist () {
     reflector \
         --country Netherlands,Germany,France,Belgium \
@@ -52,6 +59,7 @@ function update_mirrorlist () {
 
 function main() {
     eval_script_options "$@" || return $?
+    install_dependencies || return $?
     update_mirrorlist || return $?
 }
 

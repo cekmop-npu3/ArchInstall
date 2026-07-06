@@ -15,5 +15,5 @@ function install () {
     $ROOT_DIR/scripts/system/install_packages.sh --file $ROOT_DIR/config/copyq/packages.txt <<< $PASSWORD || return $?
 }
 
-source "$ROOT_DIR/scripts/utils/packages.txt"
+source "$ROOT_DIR/scripts/utils/setup.sh"
 
