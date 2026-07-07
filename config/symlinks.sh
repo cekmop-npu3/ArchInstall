@@ -110,10 +110,9 @@ function check_action () {
     fi
 }
 
-function check_dependencies () {
+function install_dependencies () {
     if ! command -v jq &>/dev/null; then
-        echo "jq command is missing"
-        return $MISSING_DEPENDENCY
+        $ROOT_DIR/scripts/system/install_packages.sh jq <<< "$password" || return $?
     fi
 }
 
@@ -162,7 +161,7 @@ function main () {
     ! is_running_in_iso || return $?
 
     eval_script_options "$@" || return $?
-    check_dependencies || return $?
+    install_dependencies || return $?
     verify $is_interactive input_config_path check_config_path || return $?
     verify $is_interactive input_action check_action || return $?
     verify $is_interactive input_password check_password || return $?

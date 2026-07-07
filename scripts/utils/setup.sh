@@ -2,7 +2,8 @@
 
 set -euo pipefail
 
-readonly PASSWORD=$(</dev/stdin)
+declare PASSWORD
+read -t 0 && read -r PASSWORD
 
 readonly ST_INVALID_OPTIONS=1
 readonly PACMAN_ERROR=2
@@ -33,16 +34,21 @@ EOF
     exit 0
 }
 
+function delete_callback_wrapper () {
+    local callback=:
+    if declare -F delete >/dev/null 2>&1; then
+        callback=delete
+    fi
+    $callback || return $PACMAN_ERROR
+    exit 0
+}
+
 function eval_script_options () {
     declare -a script_options=("$@")
 
     declare -A opt1 opt2
     create_option --long-option="help" --short-option="h" --callback=usage --early opt1
-    local callback=:
-    if declare -F delete >/dev/null 2>&1; then
-        callback=delete
-    fi
-    create_option --long-option="delete" --short-option="d" --callback=$callback opt2
+    create_option --long-option="delete" --short-option="d" --callback=delete_callback_wrapper opt2
 
     declare -A usage1
     set_usage usage1 opt1 opt2

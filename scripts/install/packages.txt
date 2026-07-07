@@ -11,5 +11,5 @@ intel-ucode grub efibootmgr
 networkmanager network-manager-applet bluez bluez-utils blueman
 
 # Documentation, editors, and development tools
-man-db man-pages sudo nano ninja clang rust go python python-pip nodejs yarn npm gdb make cmake pkg-config git jq reflector
+man-db man-pages sudo nano ninja clang rust go python python-pip nodejs yarn npm gdb make cmake pkg-config git
 

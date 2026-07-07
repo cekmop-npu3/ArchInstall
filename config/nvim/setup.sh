@@ -15,9 +15,9 @@ function delete () {
 
 function install () {
     $ROOT_DIR/scripts/system/install_packages.sh --file $ROOT_DIR/config/nvim/packages.txt <<< $PASSWORD || return $?
-    sudo npm i -g bash-language-server <<< $PASSWORD || return $?
+    sudo --stdin npm i -g bash-language-server <<< $PASSWORD || return $?
 
-    [[ -d "$HOME/neovim" ]] || { git clone --branch release-0.12 https://github.com/neovim/neovim.git ~/neovim ; ( cd ~/neovim; make CMAKE_BUILD_TYPE=RelWithDebInfo; sudo make install <<< $PASSWORD; ); }
+    [[ -d "$HOME/neovim" ]] || { git clone --branch release-0.12 https://github.com/neovim/neovim.git ~/neovim ; ( cd ~/neovim; make CMAKE_BUILD_TYPE=RelWithDebInfo; sudo --stdin make install <<< $PASSWORD; ); }
 
     [[ -d "$HOME/lua-language-server" ]] || { git clone https://github.com/LuaLS/lua-language-server ~/lua-language-server ; ( cd ~/lua-language-server; chmod +x make.sh; ./make.sh; ); }
 

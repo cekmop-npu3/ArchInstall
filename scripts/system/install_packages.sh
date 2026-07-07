@@ -7,8 +7,10 @@ readonly INSTALLPKG_INVALID_OPTIONS=2
 readonly NO_FILESYSTEM=3
 readonly IP_ROOT_DIR_INVALID=4
 readonly PACKAGE_ERROR=5
+readonly AUTH_ERROR=6
 
-readonly PASSWORD="$( [[ -t 0 ]] || </dev/stdin)"
+declare PASSWORD
+read -t 0 && read -r PASSWORD
 
 [[ -n "${ROOT_DIR:-}" ]] || { echo "ROOT_DIR env variable is not set"; exit $IP_ROOT_DIR_INVALID; }
 
@@ -33,6 +35,7 @@ Error codes:
  NO_FILESYSTEM=3                    Filesystem is not mounted
  IP_ROOT_DIR_INVALID=4              Invalid ROOT_DIR environment variable
  PACKAGE_ERROR=5                    Unknown error during package installation
+ AUTH_ERROR=6                       Invalid password 
 EOF
     exit 0
 }
@@ -56,40 +59,57 @@ function eval_script_options () {
 
     invoke_callbacks response
 
-    declare -a operands
+    declare -ga operands
     local code
     get_operands response operands || { code=$? ; [[ -n "${file:-}" ]] || return $code; } 
 }
 
-function install_packages () {
-    local -a packages
+function resolve_packages () {
+    declare -ga packages
     if [[ -n "${file:-}" ]]; then
         local string="$(sed 's/#.*$//' "$file")"
         mapfile -t packages< <(echo "$string" | grep -oP "\S+")
     else
         packages=("${operands[@]}")
     fi
+}
 
+function delete_packages () {
+    local package
     if is_running_in_iso; then
-        if [[ "${delete:-}" ]]; then
-            echo "Cannot delete packages using pacstrap"
-            return $INSTALLPKG_INVALID_OPTIONS
-        fi
-        { findmnt -R /mnt &>/dev/null || { echo "Filesystem is not mounted"; return $NO_FILESYSTEM; }; } && { pacstrap -K /mnt "${packages[@]}" || { echo "Wrong package name"; return $PACKAGE_ERROR; }; }
+        echo "Cannot delete packages using pacstrap"
+        return $INSTALLPKG_INVALID_OPTIONS
     else
-        if [[ "${delete:-}" ]]; then
-            { [ "$(id -u)" -eq 0 ] && pacman --noconfirm --needed -Runs "${packages[@]}"; } || sudo --stdin pacman --needed --noconfirm -Runs "${packages[@]}" <<< "$PASSWORD" || { echo "Wrong package name"; return $PACKAGE_ERROR; }
-        else
-            { [ "$(id -u)" -eq 0 ] && pacman --noconfirm --needed -Syu "${packages[@]}"; } || sudo --stdin pacman --noconfirm --needed -Syu "${packages[@]}" <<< "$PASSWORD" || { echo "Wrong package name"; return $PACKAGE_ERROR; }
-        fi
+        for package in "${packages[@]}"; do
+            pacman -Qi "$package" &>/dev/null && { { [ "$(id -u)" -eq 0 ] && pacman --noconfirm --needed -Syu "$package"; } || sudo --stdin pacman --noconfirm --needed -Syu "$package" <<< "$PASSWORD" || { echo "Authentication error"; return $AUTH_ERROR; }; }
+        done
+    fi
+}
+
+function install_packages () {
+    local package
+    if is_running_in_iso; then
+        findmnt -R /mnt &>/dev/null || { echo "Filesystem is not mounted"; return $NO_FILESYSTEM; }
+        pacman --noconfirm --needed -Sy
+        for package in "${packages[@]}"; do
+            pacstrap -K /mnt "$package"
+        done
+    else
+        { [ "$(id -u)" -eq 0 ] && pacman --noconfirm --needed -Sy; } || sudo --stdin pacman --noconfirm --needed -Syu <<< "$PASSWORD" || { echo "Authentication error"; return $PACKAGE_ERROR; }
+        for package in "${packages[@]}"; do
+            pacman -Si "$package" && { { [ "$(id -u)" -eq 0 ] && pacman --noconfirm --needed -S "$package"; } || sudo --stdin pacman --noconfirm --needed -S "$package" <<< "$PASSWORD" || { echo "Authentication error"; return $AUTH_ERROR; }; }
+        done
     fi
 }
 
 function main () {
     eval_script_options "$@" || return $?
-    [[ -e "${file:-}" ]] || { echo "File to parse dependencies not found"; return $NO_FILE; }
-
-    install_packages || return $?
+    resolve_packages
+    if [[ "${delete:-}" ]]; then
+        delete_packages || return $?
+    else
+        install_packages || return $?
+    fi
 }
 
 main "$@"

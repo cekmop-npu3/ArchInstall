@@ -269,7 +269,7 @@ fi
         done
         shift 1
     done
-    response_array["on_operand"] = "true"
+    response_array['on_operand']="true"
 }
 
 # Parameters:
@@ -278,10 +278,9 @@ fi
 function get_operands () {
     _is_array "$1" true || return $?
     _is_array "$2" || return $?
-    [[ -n "${response_array['on_operand']:-}" ]] || return $NO_OPERANDS
-
     local -n response_array="$1"
     local -n operands_array="$2"
+    [[ -n "${response_array['on_operand']:-}" ]] || return $NO_OPERANDS
 
     eval set -- "${response_array['formatted_options']}"
     while [[ $# -gt 0 && "$1" != "--" ]]; do
@@ -289,6 +288,6 @@ function get_operands () {
     done
     shift 1
 
-    [[ $# -eq 0 ]] || return $NO_OPERANDS
+    [[ $# -ne 0 ]] || return $NO_OPERANDS
     operands_array=("$@")
 }
