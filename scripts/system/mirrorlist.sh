@@ -3,9 +3,9 @@
 set -euo pipefail
 
 readonly MM_ROOT_DIR_INVALID=1
-readonly PACKAGE_ERROR=2
+readonly M_AUTH_ERROR=2
 
-declare PASSWORD
+declare PASSWORD=""
 read -t 0 && read -r PASSWORD
 
 [[ -n "${ROOT_DIR:-}" ]] || { echo "ROOT_DIR env variable is not set"; exit $MM_ROOT_DIR_INVALID; }
@@ -18,13 +18,14 @@ source "$ROOT_DIR/scripts/utils/parse_options.sh"
 function usage () {
     cat <<EOF
 Usage:
- $script_name [options]
+ $script_name [options] <<< \$PASSWORD
 
 Options:
  -h, --help                 Show this help
 
 Error codes:
  IP_ROOT_DIR_INVALID=1      Invalid ROOT_DIR environment variable
+ M_AUTH_ERROR=2             Invalid password
 EOF
     exit 0
 }
@@ -51,13 +52,23 @@ function install_dependencies () {
 }
 
 function update_mirrorlist () {
-    reflector \
-        --country Netherlands,Germany,France,Belgium \
-        --protocol https \
-        --age 24 \
-        --sort rate \
-        --latest 20 \
-        --save $( { { is_running_in_iso && findmnt -R /mnt &>/dev/null && [[ -e "/mnt/etc/arch-release" ]]; } && echo "/mnt/etc/pacman.d/mirrorlist"; } || echo "/etc/pacman.d/mirrorlist")
+    if is_running_in_iso && findmnt -R /mnt &>/dev/null && [[ -e "/mnt/etc/arch-release" ]]; then
+        reflector \
+            --country Netherlands,Germany,France,Belgium \
+            --protocol https \
+            --age 24 \
+            --sort rate \
+            --latest 20 \
+            --save "/mnt/etc/pacman.d/mirrorlist"
+    else
+        sudo --stdin reflector \
+            --country Netherlands,Germany,France,Belgium \
+            --protocol https \
+            --age 24 \
+            --sort rate \
+            --latest 20 \
+            --save "/etc/pacman.d/mirrorlist" 2>/dev/null <<< "$PASSWORD" || return $M_AUTH_ERROR
+    fi
 }
 
 function main() {

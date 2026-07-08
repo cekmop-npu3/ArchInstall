@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-declare PASSWORD
+declare PASSWORD=""
 read -t 0 && read -r PASSWORD
 
 readonly ST_INVALID_OPTIONS=1

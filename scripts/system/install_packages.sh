@@ -9,7 +9,7 @@ readonly IP_ROOT_DIR_INVALID=4
 readonly PACKAGE_ERROR=5
 readonly AUTH_ERROR=6
 
-declare PASSWORD
+declare PASSWORD=""
 read -t 0 && read -r PASSWORD
 
 [[ -n "${ROOT_DIR:-}" ]] || { echo "ROOT_DIR env variable is not set"; exit $IP_ROOT_DIR_INVALID; }
@@ -81,7 +81,7 @@ function delete_packages () {
         return $INSTALLPKG_INVALID_OPTIONS
     else
         for package in "${packages[@]}"; do
-            pacman -Qi "$package" &>/dev/null && { { [ "$(id -u)" -eq 0 ] && pacman --noconfirm --needed -Syu "$package"; } || sudo --stdin pacman --noconfirm --needed -Syu "$package" <<< "$PASSWORD" || { echo "Authentication error"; return $AUTH_ERROR; }; }
+            pacman -Qi "$package" &>/dev/null && { { [ "$(id -u)" -eq 0 ] && pacman --noconfirm --needed -Syu "$package"; } || sudo --stdin pacman --noconfirm --needed -Syu "$package" 2>/dev/null <<< "$PASSWORD" || { echo "Authentication error"; return $AUTH_ERROR; }; }
         done
     fi
 }
@@ -95,9 +95,9 @@ function install_packages () {
             pacstrap -K /mnt "$package"
         done
     else
-        { [ "$(id -u)" -eq 0 ] && pacman --noconfirm --needed -Sy; } || sudo --stdin pacman --noconfirm --needed -Syu <<< "$PASSWORD" || { echo "Authentication error"; return $PACKAGE_ERROR; }
+        { [ "$(id -u)" -eq 0 ] && pacman --noconfirm --needed -Sy; } || sudo --stdin pacman --noconfirm --needed -Sy 2>/dev/null <<< "$PASSWORD" || { echo "Authentication error"; return $PACKAGE_ERROR; }
         for package in "${packages[@]}"; do
-            pacman -Si "$package" && { { [ "$(id -u)" -eq 0 ] && pacman --noconfirm --needed -S "$package"; } || sudo --stdin pacman --noconfirm --needed -S "$package" <<< "$PASSWORD" || { echo "Authentication error"; return $AUTH_ERROR; }; }
+            pacman -Si "$package" &>/dev/null && { { [ "$(id -u)" -eq 0 ] && pacman --noconfirm --needed -S "$package"; } || sudo --stdin pacman --noconfirm --needed -S "$package" 2>/dev/null <<< "$PASSWORD" || { echo "Authentication error"; return $AUTH_ERROR; }; }
         done
     fi
 }

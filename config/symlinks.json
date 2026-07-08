@@ -53,7 +53,7 @@
             "setup": "$ROOT_DIR/config/zsh/setup.sh"
         },
         {
-            "target": "$ROOT_DIR/config/zsh/zsh_profile.zsh",
+            "target": "$ROOT_DIR/config/zsh/zprofile.sh",
             "link": "~/.zprofile"
         },
 

@@ -7,12 +7,12 @@ readonly WB_ROOT_DIR_INVALID=3
 [[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || { echo "ROOT_DIR is invalid"; return $WB_ROOT_DIR_INVALID; }
 
 function delete () {
-    $ROOT_DIR/scripts/system/install_packages.sh --file $ROOT_DIR/config/waybar/packages.txt --delete <<< $PASSWORD || return $?
+    $ROOT_DIR/scripts/system/install_packages.sh --file $ROOT_DIR/config/waybar/packages.txt --delete <<< "$PASSWORD" || return $?
     exit 0
 }
 
 function install () {
-    $ROOT_DIR/scripts/system/install_packages.sh --file $ROOT_DIR/config/waybar/packages.txt <<< $PASSWORD || return $?
+    $ROOT_DIR/scripts/system/install_packages.sh --file $ROOT_DIR/config/waybar/packages.txt <<< "$PASSWORD" || return $?
 }
 
 source "$ROOT_DIR/scripts/utils/setup.sh"
