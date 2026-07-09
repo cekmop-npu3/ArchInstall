@@ -11,3 +11,5 @@ source $ZSH/oh-my-zsh.sh
 
 export MANPAGER="nvim -c 'Man!' -"
 export PATH=$PATH:~/lua-language-server/bin
+export ROOT_DIR="$HOME/ArchInstall"
+

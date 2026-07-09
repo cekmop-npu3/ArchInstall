@@ -122,6 +122,8 @@ function parse_config_file () {
 
     local symlink
     local target link force
+    local -a failed_setups
+
     for symlink in "${symlinks[@]}"; do
         target="$(echo "$symlink" | jq --tab --raw-output --exit-status '.["target"]')" || return $INVALID_TARGET
         target="$(eval echo "$target")"
@@ -139,33 +141,39 @@ function parse_config_file () {
             (create)
                 mkdir -p "$(dirname "$link")"
                 ln -sfn "$target" "$link" &>/dev/null || return $INVALID_SYMLINK
-                echo "Successfully created symlink $link to target $target"
                 if [[ "$setup_script" != "null" ]]; then
                     [[ -x "$setup_script" ]] || return $INVALID_SETUP_SCRIPT
-                    "$setup_script" <<< "$password" || return $?
+                    "$setup_script" <<< "$password" || failed_setups+="$target"
                 fi
             ;;
             (delete)
                 { [[ -L "$link" ]] && unlink "$link" &>/dev/null; } || return $INVALID_SYMLINK
-                echo "Successfully deleted symlink $link"
                 if [[ "$setup_script" != "null" ]]; then
                     [[ -x "$setup_script" ]] || return $INVALID_SETUP_SCRIPT
-                    "$setup_script" --delete <<< "$password" || return $?
+                    "$setup_script" --delete <<< "$password" || failed_setups+="$target"
                 fi
             ;;
         esac
     done
+
+    if [[ ${#failed_setups[@]} -ne 0 ]]; then
+        local failed_target
+        echo "Setup failed for the following targets:"
+        for failed_target in "${failed_setups[@]}"; do
+            echo "$failed_target"
+        done
+    fi
 }
 
 function main () {
     ! is_running_in_iso || return $?
 
     eval_script_options "$@" || return $?
-    install_dependencies || return $?
     verify $is_interactive input_config_path check_config_path || return $?
     verify $is_interactive input_action check_action || return $?
     verify $is_interactive input_password check_password || return $?
 
+    install_dependencies || return $?
     parse_config_file || return $?
 }
 

@@ -97,7 +97,7 @@ function install_packages () {
     else
         { [ "$(id -u)" -eq 0 ] && pacman --noconfirm --needed -Sy; } || sudo --stdin pacman --noconfirm --needed -Sy 2>/dev/null <<< "$PASSWORD" || { echo "Authentication error"; return $PACKAGE_ERROR; }
         for package in "${packages[@]}"; do
-            pacman -Si "$package" &>/dev/null && { { [ "$(id -u)" -eq 0 ] && pacman --noconfirm --needed -S "$package"; } || sudo --stdin pacman --noconfirm --needed -S "$package" 2>/dev/null <<< "$PASSWORD" || { echo "Authentication error"; return $AUTH_ERROR; }; }
+            pacman -Si "$package" &>/dev/null && { { [ "$(id -u)" -eq 0 ] && pacman --noconfirm --needed --ask=28 -S "$package"; } || sudo --stdin pacman --noconfirm --ask=28 --needed -S "$package" 2>/dev/null <<< "$PASSWORD" || { echo "Authentication error"; return $AUTH_ERROR; }; }
         done
     fi
 }
