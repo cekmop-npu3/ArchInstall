@@ -30,31 +30,33 @@ declare -ir min_boot_size=1
 declare -i is_interactive=1
 
 function usage () {
-    cat <<EOF
-Usage:
- $script_name [options]
- $script_name [-i|--interactive]
+    cat <<-EOF
+Usage: $script_name [OPTIONS]
+       $script_name --interactive
+
+Partition, format, and mount an Arch Linux target filesystem at /mnt.
 
 Options:
- -d, --disk <disk>                            Disk to use "/dev/disk_name"
- -s, --swap <swap_size>                       Swap size in GiB in a format <Integer>. Disabled by default
- -r, --root <root_size>                       Root size in GiB in a format <Integer>. Default/Minimum $min_root_size GiB
- -p, --partition <part_table>                 Either <GPT> or <MBR>. Default $default_partition_table
- -l, --lvm                                    Option enables LVM. Disabled by default
- -L, --luks <pass>                            Enables LUKS encryption. Disabled by default. If the password given is "-", reads from PASSWORD env variable
+  -d, --disk DEVICE       Target block device, for example /dev/nvme0n1
+  -s, --swap GIB          Swap size in GiB (default: disabled)
+  -r, --root GIB          Root size in GiB (default: $min_root_size; minimum: $min_root_size)
+  -p, --partition TABLE   Partition table: GPT or MBR (default: $default_partition_table)
+  -l, --lvm               Enable LVM
+  -L, --luks PASSWORD     Enable LUKS; use - to read PASSWORD from the environment
+  -i, --interactive       Prompt for installation settings
+  -h, --help              Display this help and exit
 
- -h, --help                                   Display this help
-
-Exit codes:
- INSUFFICIENT_DISK_SIZE=1                     Not enough space on disk for current configuration
- INVALID_PARTITION=2                          Must be either "GPT" or "MBR"
- INVALID_DISK_NAME=3                          Disk name is invalid or not specified
- INVALID_UEFI=4                               UEFI is not detected
- INSUFFICIENT_ROOT_SIZE=5                     Root size must be at least $min_root_size GiB
- INVALID_NUMBER=6                             Nan was passed as a parameter
- INVALID_PASSWORD=7                           Password is empty or passwords don't match
- DF_INVALID_OPTIONS=8                         Invalid options passed to $script_name
- DF_ROOT_DIR_INVALID=9                        Invalid ROOT_DIR environment variable
+Exit status:
+  0  Success
+  1  Insufficient disk space
+  2  Invalid partition table
+  3  Invalid or missing disk device
+  4  UEFI is unavailable for a GPT installation
+  5  Root size is smaller than $min_root_size GiB
+  6  A size is not a non-negative integer
+  7  LUKS password is empty or confirmation does not match
+  8  Invalid command-line options
+  9  ROOT_DIR is unset or invalid
 EOF
     exit 0
 }

@@ -7,6 +7,9 @@ function M.setup()
             return
         end
         vim.bo[ev.buf].omnifunc = "v:lua.vim.lsp.omnifunc"
+        if client:supports_method("textDocument/inlayHint") then
+            vim.lsp.inlay_hint.enable(true, { bufnr = ev.buf })
+        end
         require("lsp.keymaps").on_attach(ev, client)
     end
 
@@ -15,11 +18,12 @@ function M.setup()
     })
 
     vim.lsp.config["lua_ls"] = require("lsp.config.lua_ls")
+    vim.lsp.config["pyrefly"] = require("lsp.config.pyrefly")
 
     vim.lsp.enable("clangd")
     vim.lsp.enable("lua_ls")
     vim.lsp.enable("bashls")
-    vim.lsp.enable("pylsp")
+    vim.lsp.enable("pyrefly")
     vim.lsp.enable("neocmake")
 end
 

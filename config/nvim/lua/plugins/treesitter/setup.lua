@@ -10,6 +10,7 @@ function M.setup()
         ensure_installed = {
             "markdown",
             "markdown_inline",
+            "python",
         },
         auto_install = true,
         highlight = {

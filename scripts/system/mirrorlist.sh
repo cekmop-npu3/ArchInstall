@@ -16,16 +16,20 @@ source "$ROOT_DIR/scripts/utils/utils.sh"
 source "$ROOT_DIR/scripts/utils/parse_options.sh"
 
 function usage () {
-    cat <<EOF
-Usage:
- $script_name [options] <<< \$PASSWORD
+    cat <<-EOF
+Usage: $script_name [OPTIONS]
+
+Generate an Arch Linux mirror list with reflector.
 
 Options:
- -h, --help                 Show this help
+  -h, --help  Display this help and exit
 
-Error codes:
- IP_ROOT_DIR_INVALID=1      Invalid ROOT_DIR environment variable
- M_AUTH_ERROR=2             Invalid password
+On an installed system, provide the sudo password on standard input when needed.
+
+Exit status:
+  0  Success
+  1  ROOT_DIR is unset or invalid
+  2  Authentication failed
 EOF
     exit 0
 }

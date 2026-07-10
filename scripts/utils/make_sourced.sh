@@ -5,12 +5,14 @@ declare _RAN_DIRECTLY=100
 declare _script_name=$(basename -- "$0")
 
 function _usage () {
-    cat <<EOF
-Usage:
- source ./$_script_name
+    cat <<-EOF
+Usage: source $_script_name
 
-Exit codes:
- $_script_name returns $_RAN_DIRECTLY if it's ran directly. Only intended to be sourced
+Load shared functions into the current shell. This file cannot be executed directly.
+
+Exit status:
+  0    Success
+  $_RAN_DIRECTLY  File was executed instead of sourced
 EOF
 }
 
@@ -21,4 +23,3 @@ EOF
 unset -f _usage
 unset _RAN_DIRECTLY
 unset _script_name
-

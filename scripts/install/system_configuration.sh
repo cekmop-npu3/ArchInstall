@@ -17,22 +17,24 @@ declare -i is_interactive=1
 
 function usage () {
     cat <<-EOF
-Usage:
- $script_name [-i|--interactive]
- $script_name [options]
+Usage: $script_name [OPTIONS]
+       $script_name --interactive
+
+Install and configure the base Arch system mounted at /mnt.
 
 Options:
- -t, --timezone <Area/Location>
- -H, --hostname <hostname>
+  -t, --timezone ZONE     Timezone in Area/Location form
+  -H, --hostname NAME     Hostname for the installed system
+  -i, --interactive       Prompt for configuration values
+  -h, --help              Display this help and exit
 
- -h, --help
-
-Error codes:
- INVALID_TIMEZONE=1                Invalid timezone was specified, see timedatectl list-timezones
- INVALID_HOSTNAME=2
- SYSCFG_INVALID_OPTIONS=3          Invalid options passed to $script_name
- WRONG_ENV=4                       Script must be ran in live environment
- SC_ROOT_DIR_INVALID=5             Invalid ROOT_DIR environment variable
+Exit status:
+  0  Success
+  1  Invalid timezone
+  2  Invalid hostname
+  3  Invalid command-line options
+  4  Script is not running in the live environment
+  5  ROOT_DIR is unset or invalid
 EOF
     exit 0
 }

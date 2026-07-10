@@ -24,7 +24,10 @@ function M.setup()
             },
             mappings = {
                 i = {
+                    ["<CR>"] = actions.select_default,
                     ["<C-h>"] = actions.select_horizontal,
+                    ["<C-v>"] = actions.select_vertical,
+                    ["<C-t>"] = actions.select_tab,
                     ["<C-x>"] = false,
                 },
                 n = {
@@ -32,7 +35,10 @@ function M.setup()
                     ["J"] = actions.move_to_bottom,
                     ["<leader>k"] = actions.move_to_top,
                     ["<leader>j"] = actions.move_to_bottom,
+                    ["<CR>"] = actions.select_default,
                     ["<C-h>"] = actions.select_horizontal,
+                    ["<C-v>"] = actions.select_vertical,
+                    ["<C-t>"] = actions.select_tab,
                     ["<C-x>"] = false,
                 },
             },

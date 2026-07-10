@@ -22,26 +22,32 @@ source "$ROOT_DIR/scripts/utils/parse_options.sh"
 declare -i is_interactive=1
 
 function usage () {
-    cat <<EOF
-Usage:
- $script_name [-i|--interactive]
- $script_name [options] 
+    cat <<-EOF
+Usage: $script_name [OPTIONS]
+       $script_name --interactive
+
+Create or delete the configuration symlinks described by a JSON manifest.
 
 Options:
- -p, --config-path <path_to_config_file>  Path to config file with symlink targets in a format:
-    JSON:
-{
-    "symlinks": [
-        {
-            "target": "target",
-            "link": "link",
-            "setup": "setup"
-        }
-    ]
-}
- -a, --action <action>                    Whether to "create" or "delete" symlinks. Default is "create"
+  -p, --config-path FILE   Read symlink definitions from FILE
+  -a, --action ACTION      Action to perform: create or delete (default: create)
+  -i, --interactive        Prompt for the manifest, action, and sudo password
+  -h, --help               Display this help and exit
 
- -h, --help                               Display this help
+Manifest format:
+  {"symlinks":[{"target":"/source","link":"/destination","setup":"/setup.sh"}]}
+
+Exit status:
+  0  Success
+  1  Invalid or missing manifest path
+  2  Invalid action
+  3  Missing dependency
+  4  Invalid manifest format
+  5  Invalid target
+  6  Target or link is not an absolute path after expansion
+  7  Symlink operation failed
+  8  ROOT_DIR is unset or invalid
+  9  Invalid or non-executable setup script
 EOF
     exit 0
 }
@@ -122,7 +128,7 @@ function parse_config_file () {
 
     local symlink
     local target link force
-    local -a failed_setups
+    local -a failed_setups=()
 
     for symlink in "${symlinks[@]}"; do
         target="$(echo "$symlink" | jq --tab --raw-output --exit-status '.["target"]')" || return $INVALID_TARGET

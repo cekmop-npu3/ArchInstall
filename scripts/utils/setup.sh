@@ -18,18 +18,20 @@ source "$ROOT_DIR/scripts/utils/utils.sh"
 source "$ROOT_DIR/scripts/utils/parse_options.sh"
 
 function usage () {
-    cat <<EOF
-Usage:
- $script_name [options]
+    cat <<-EOF
+Usage: $script_name [OPTIONS]
+
+Install or remove dependencies for this configuration component.
 
 Options:
- -d, --delete                To uninstall all of the dependencies
- -h, --help                  Show this help
+  -d, --delete  Remove the component's dependencies
+  -h, --help    Display this help and exit
 
-Error codes:
- ST_INVALID_OPTIONS=1        Invalid options passed to $script_name
- PACMAN_ERROR=2              Error during package installation
- ST_ROOT_DIR_INVALID=3       Invalid ROOT_DIR environment variable
+Exit status:
+  0  Success
+  1  Invalid command-line options
+  2  Package operation failed
+  3  ROOT_DIR is unset or invalid
 EOF
     exit 0
 }
@@ -69,4 +71,3 @@ function main() {
 }
 
 main "$@"
-

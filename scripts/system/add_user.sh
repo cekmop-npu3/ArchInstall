@@ -19,22 +19,24 @@ declare -i is_interactive=1
 
 function usage () {
     cat <<-EOF
-Usage:
- $script_name [-i|--interactive]
- $script_name [options]
+Usage: $script_name [OPTIONS]
+       $script_name --interactive
+
+Create an Arch Linux user and grant the wheel group sudo access.
 
 Options:
- -u, --username <username>                Username to use as login
- -p, --password <pass>                    If the password given is "-", reads from PASSWORD env variable
+  -u, --username NAME       Login name for the new user
+  -p, --password PASSWORD   Account password; use - to read PASSWORD from the environment
+  -i, --interactive         Prompt for account details
+  -h, --help                Display this help and exit
 
- -h, --help                               Display this help
-
-Exit codes:
- INVALID_USERNAME=1    
- INVALID_PASSWORD=2                       Password is empty or passwords don't match
- ADDUSER_INVALID_OPTIONS=3                Invalid options passed to $script_name
- NO_FILESYSTEM=4                          Filesystem is not mounted
- AU_ROOT_DIR_INVALID=5                    Invalid ROOT_DIR environment variable
+Exit status:
+  0  Success
+  1  Invalid username
+  2  Password is empty or confirmation does not match
+  3  Invalid command-line options
+  4  Target filesystem is not mounted
+  5  ROOT_DIR is unset or invalid
 EOF
     exit 0
 }

@@ -13,16 +13,18 @@ source "$ROOT_DIR/scripts/utils/parse_options.sh"
 source "$ROOT_DIR/scripts/utils/utils.sh"
 
 function usage () {
-    cat <<EOF
-Usage:
- $script_name [options]
+    cat <<-EOF
+Usage: $script_name [OPTIONS]
+
+Configure initramfs and install GRUB for the Arch system mounted at /mnt.
 
 Options:
- -h, --help                 Show this help
+  -h, --help  Display this help and exit
 
-Error codes:
- NO_FILESYSTEM=1            Filesystem is not mounted or $script_name is not running in live environment
- BC_ROOT_DIR_INVALID=2      Invalid ROOT_DIR environment variable
+Exit status:
+  0  Success
+  1  Target filesystem is not mounted or the script is not running in the live environment
+  2  ROOT_DIR is unset or invalid
 EOF
     exit 0
 }
@@ -111,6 +113,7 @@ function configure_grub () {
 
     arch-chroot /mnt <<-EOF
 sed -i 's|^[#[:space:]]*GRUB_CMDLINE_LINUX_DEFAULT=.*$|GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet pcie_aspm=off $(lsblk --nvme "$disk" &>/dev/null && echo "nvme_core.default_ps_max_latency_us=0")"|' /etc/default/grub
+sed -i 's|^[#[:space:]]*GRUB_DISABLE_OS_PROBER=.*$|GRUB_DISABLE_OS_PROBER=false|' /etc/default/grub
 EOF
 
     if [[ -n "${luks_uuid:-}" ]]; then

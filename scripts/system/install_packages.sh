@@ -20,22 +20,26 @@ source "$ROOT_DIR/scripts/utils/utils.sh"
 source "$ROOT_DIR/scripts/utils/parse_options.sh"
 
 function usage () {
-    cat <<EOF
-Usage:
- $script_name [options] [packages] <<< \$PASSWORD
+    cat <<-EOF
+Usage: $script_name [OPTIONS] [PACKAGE...]
+
+Install or remove Arch packages on the current system or the target at /mnt.
 
 Options:
- -f, --file <file>                  A file to parse dependencies from
- -d, --delete                       To delete packages listed in <file>
- -h, --help                         Show this help
+  -f, --file FILE   Read package names from FILE
+  -d, --delete      Remove packages instead of installing them
+  -h, --help        Display this help and exit
 
-Error codes:
- NO_FILE=1                          File to install dependencies from is not found
- INSTALLPKG_INVALID_OPTIONS=2       Invalid options passed to $script_name
- NO_FILESYSTEM=3                    Filesystem is not mounted
- IP_ROOT_DIR_INVALID=4              Invalid ROOT_DIR environment variable
- PACKAGE_ERROR=5                    Unknown error during package installation
- AUTH_ERROR=6                       Invalid password 
+On an installed system, provide the sudo password on standard input when needed.
+
+Exit status:
+  0  Success
+  1  Package file was not found
+  2  Invalid command-line options
+  3  Target filesystem is not mounted
+  4  ROOT_DIR is unset or invalid
+  5  Package operation failed
+  6  Authentication failed
 EOF
     exit 0
 }

@@ -7,6 +7,9 @@ readonly INVALID_USERNAME=2
 readonly SELFDEPLOY_INVALID_OPTIONS=3
 readonly SD_ROOT_DIR_INVALID=4
 
+declare PASSWORD=""
+read -t 0 && read -r PASSWORD
+
 [[ -n "${ROOT_DIR:-}" ]] || { echo "ROOT_DIR env variable is not set"; exit $SD_ROOT_DIR_INVALID; }
 
 [[ -e "$ROOT_DIR/scripts/utils/parse_options.sh" ]] || { echo "ROOT_DIR is invalid"; exit $SD_ROOT_DIR_INVALID; }
@@ -18,20 +21,22 @@ declare -i is_interactive=1
 
 function usage () {
     cat <<-EOF
-Usage:
- $script_name [-i|--interactive]
- $script_name [options]
+Usage: $script_name [OPTIONS]
+       $script_name --interactive
+
+Copy this repository into a user's home directory with rsync.
 
 Options:
- -u, --username <username>                User account on a mounted system to copy the directory to. Default is root
+  -u, --username NAME   Destination account (default: root)
+  -i, --interactive     Prompt for the destination account
+  -h, --help            Display this help and exit
 
- -h, --help                               Display this help
-
-Exit codes:
- NO_FILESYSTEM=1                          Filesystem is not mounted or $script_name is not running in live environment
- INVALID_USERNAME=2                       Provided username doesn't exist. See $ROOT_DIR/scripts/system/add_user.sh
- SELFDEPLOY_INVALID_OPTIONS=3             Invalid options passed to $script_name
- IP_ROOT_DIR_INVALID=4                    Invalid ROOT_DIR environment variable
+Exit status:
+  0  Success
+  1  Target filesystem is not mounted
+  2  Invalid username
+  3  Invalid command-line options
+  4  ROOT_DIR is unset or invalid
 EOF
     exit 0
 }
@@ -70,19 +75,34 @@ function check_username () {
     fi
 }
 
+function install_dependencies () {
+    if ! command -v rsync &>/dev/null; then
+        $ROOT_DIR/scripts/system/install_packages.sh rsync <<< "$PASSWORD" || return $?
+    fi
+}
+
 function copy () {
     is_running_in_iso && { { findmnt -R /mnt &>/dev/null && [[ -e "/mnt/etc/arch-release" ]]; } || { echo "Filesystem is not mounted"; return $NO_FILESYSTEM; }; }
 
     local install_root="$ROOT_DIR"
     local target_uid=$(grep "^$username:" "$( ( is_running_in_iso && echo "/mnt/etc/passwd"; ) || echo "/etc/passwd" )" | cut -d: -f3)
     local target_gid=$(grep "^$username:" "$( ( is_running_in_iso && echo "/mnt/etc/group"; ) || echo "/etc/group" )" | cut -d: -f3)
-    rsync -av --chown="$target_uid:$target_gid" "$install_root" "$( ( is_running_in_iso && echo "/mnt/home/$username"; ) || echo "/home/$username" )" &>/dev/null
+
+    if [[ "$username" == "root" ]]; then
+        if is_running_in_iso; then
+            rsync -av --chown="$target_uid:$target_gid" "$install_root" "/mnt/root"
+        else
+            sudo --stdin rsync -av --chown="$target_uid:$target_gid" "$install_root" "/root" 2>/dev/null <<< "$PASSWORD"
+        fi
+    else
+        rsync -av --chown="$target_uid:$target_gid" "$install_root" "$( ( is_running_in_iso && echo "/mnt/home/$username"; ) || echo "/home/$username" )" &>/dev/null
+    fi
 }
 
 function main () {
     eval_script_options "$@" || return $?
     verify $is_interactive input_username check_username || return $?
-
+    install_dependencies || return $?
     copy || return $?
 }
 

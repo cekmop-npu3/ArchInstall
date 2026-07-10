@@ -8,8 +8,8 @@ readonly NV_ROOT_DIR_INVALID=3
 
 function delete () {
     $ROOT_DIR/scripts/system/install_packages.sh --file $ROOT_DIR/config/nvim/packages.txt --delete <<< "$PASSWORD" || return $?
-    rm -rf ~/neovim
-    rm -rf ~/lua-language-server
+    rm -rf ~/neovim || true
+    rm -rf ~/lua-language-server || true
     exit 0
 }
 
@@ -20,6 +20,11 @@ function install () {
     [[ -d "$HOME/neovim" ]] || { git clone --branch release-0.12 https://github.com/neovim/neovim.git ~/neovim ; ( cd ~/neovim; make CMAKE_BUILD_TYPE=RelWithDebInfo; sudo --stdin make install 2>/dev/null <<< "$PASSWORD"; ); }
 
     [[ -d "$HOME/lua-language-server" ]] || { git clone https://github.com/LuaLS/lua-language-server ~/lua-language-server ; ( cd ~/lua-language-server; chmod +x make.sh; ./make.sh; ); }
+    uv tool install pyrefly
+    cargo install neocmakelsp
+
+    # TODO: Write to .zshrc export statements
+
 }
 
 source "$ROOT_DIR/scripts/utils/setup.sh"
