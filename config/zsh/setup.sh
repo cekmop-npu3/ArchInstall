@@ -15,6 +15,7 @@ function install () {
     $ROOT_DIR/scripts/system/install_packages.sh --file $ROOT_DIR/config/zsh/packages.txt <<< "$PASSWORD" || return $?
     chsh -s /usr/bin/zsh <<< "$PASSWORD" || true
     [[ -d "$HOME/.oh-my-zsh" ]] || sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --keep-zshrc --unattended
+    "$ROOT_DIR/config/zsh/install_docs.sh"
 }
 
 source "$ROOT_DIR/scripts/utils/setup.sh"

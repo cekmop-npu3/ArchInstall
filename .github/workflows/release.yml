@@ -1,0 +1,105 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  iso_build:
+    name: Build ISO
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Build Arch Linux ISO
+        run: |
+          docker run --rm --privileged \
+            --volume "$GITHUB_WORKSPACE:/workspace" \
+            --workdir /workspace \
+            archlinux:latest \
+            bash -euxo pipefail -c '
+              pacman -Syu --noconfirm archiso
+              mkarchiso \
+                -A arch_linux
+                -r \
+                -m iso \
+                -p git
+                /usr/share/archiso/configs/releng
+            '
+
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: arch-linux-iso
+          path: out/arch_linux.iso
+
+  source_code_archive:
+    name: Archive source code
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Create source code archive
+        run: |
+          git archive \
+            --format=tar.gz \
+            --output=source_code.tar.gz \
+            HEAD
+
+      - name: Upload source code archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: source-code
+          path: source_code.tar.gz
+
+  ventoy_injection:
+    name: Ventoy injection
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Generate ventoy injection archive
+        run: |
+          git clone https://github.com/ventoy/LiveInjection.git
+          cp -rf ventoy/sysroot/ LiveInjection/
+          sh pack.sh
+
+      - name: Upload ventoy files
+        uses: actions/upload-artifact@v7
+        with:
+          name: ventoy-files
+          path: |
+            ventoy/ventoy.json
+            LiveInjection/live_injection.tar.gz
+
+  release:
+    name: Publish release
+    needs:
+      - iso_build
+      - source_code_archive
+      - ventoy_injection
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v7
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          generate_release_notes: true
+          files: |
+            arch_linux.iso
+            source_code.tar.gz
+            ventoy.json
+            live_injection.tar.gz
+

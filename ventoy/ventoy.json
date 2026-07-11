@@ -1,0 +1,8 @@
+{
+    "injection": [
+        {
+            "image": "/arch_linux.iso",
+            "archive": "/live_injection.tar.gz"
+        }
+    ]
+}
