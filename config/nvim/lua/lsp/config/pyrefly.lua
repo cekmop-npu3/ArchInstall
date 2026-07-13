@@ -11,7 +11,6 @@ return {
     settings = {
         python = {
             pyrefly = {
-                -- A project's pyrefly.toml or [tool.pyrefly] takes precedence.
                 typeCheckingMode = "strict",
                 disableTypeErrors = false,
                 disableLanguageServices = false,

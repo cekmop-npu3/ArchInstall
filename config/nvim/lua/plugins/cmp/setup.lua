@@ -6,11 +6,15 @@ function M.setup()
         return
     end
 
+    local keymaps = require("plugins.cmp.keymaps")
+    keymaps.setup(cmp)
+
     cmp.setup({
         mapping = cmp.mapping.preset.insert({
             ["<C-j>"] = cmp.mapping.select_next_item({ behavior = cmp.SelectBehavior.Select }),
             ["<C-k>"] = cmp.mapping.select_prev_item({ behavior = cmp.SelectBehavior.Select }),
-            ["<Tab>"] = cmp.mapping.confirm({ select = false })
+            ["<Tab>"] = cmp.mapping.confirm({ select = false }),
+            ["<M-p>"] = cmp.mapping(keymaps.toggle_documentation_focus, { "n", "i", "s" }),
         }),
         sources = cmp.config.sources({
             { name = "nvim_lsp" },

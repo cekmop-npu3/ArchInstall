@@ -17,6 +17,7 @@ function M.setup()
         callback = on_lsp_attach,
     })
 
+    vim.lsp.config["clangd"] = require("lsp.config.clangd")
     vim.lsp.config["lua_ls"] = require("lsp.config.lua_ls")
     vim.lsp.config["pyrefly"] = require("lsp.config.pyrefly")
 

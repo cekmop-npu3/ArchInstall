@@ -10,6 +10,16 @@ alias cmake-docs='xdg-open /usr/share/doc/cmake/html/index.html'
 alias postgresql-docs='xdg-open /usr/share/doc/postgresql/html/index.html'
 alias c-docs='xdg-open ~/.local/share/doc/C/C-language.html'
 alias glibc-docs='xdg-open ~/.local/share/doc/C/glibc.html'
+alias make-docs='xdg-open ~/.local/share/doc/make/make.html'
+alias gcc-docs='xdg-open ~/.local/share/doc/gcc/gcc/index.html'
+alias clang-docs='xdg-open /usr/share/doc/clang/html/UsersManual.html'
+alias clangd-docs='xdg-open /usr/share/doc/clang-tools/html/clangd/index.html'
+alias lua-docs='xdg-open /usr/share/doc/lua/manual.html'
+
+function clear-history () {
+    : > "$HISTFILE"
+    fc -p "$HISTFILE"
+}
 
 # Parameters:
 #  $1 -> documentation directory

@@ -8,6 +8,7 @@ export MANPAGER="nvim -c 'Man!' -"
 typeset -U path
 path=(
     "$HOME/.cargo/bin"
+    "$HOME/.local/bin"
     "$HOME/lua-language-server/bin"
     $path
 )

@@ -2,13 +2,8 @@ name: Release
 
 on:
   push:
-    branches:
-      - main
     tags:
       - "v*"
-
-permissions:
-  contents: write
 
 jobs:
   iso_build:
@@ -25,18 +20,21 @@ jobs:
             bash -euxo pipefail -c '
               pacman -Syu --noconfirm archiso
               mkarchiso \
-                -A arch_linux
                 -r \
                 -m iso \
-                -p git
+                -p git \
+                -o /workspace/out \
                 /usr/share/archiso/configs/releng
+
+              mv /workspace/out/*.iso /workspace/arch_linux.iso
             '
 
       - name: Upload ISO artifact
         uses: actions/upload-artifact@v7
         with:
           name: arch-linux-iso
-          path: out/arch_linux.iso
+          path: arch_linux.iso
+          if-no-files-found: error
 
   source_code_archive:
     name: Archive source code
@@ -58,6 +56,7 @@ jobs:
         with:
           name: source-code
           path: source_code.tar.gz
+          if-no-files-found: error
 
   ventoy_injection:
     name: Ventoy injection
@@ -69,9 +68,12 @@ jobs:
 
       - name: Generate ventoy injection archive
         run: |
-          git clone https://github.com/ventoy/LiveInjection.git
-          cp -rf ventoy/sysroot/ LiveInjection/
-          sh pack.sh
+          git clone --depth 1 https://github.com/ventoy/LiveInjection.git
+          cp -a ventoy/sysroot/. LiveInjection/sysroot/
+          (
+            cd LiveInjection
+            sh pack.sh
+          )
 
       - name: Upload ventoy files
         uses: actions/upload-artifact@v7
@@ -80,26 +82,33 @@ jobs:
           path: |
             ventoy/ventoy.json
             LiveInjection/live_injection.tar.gz
+          if-no-files-found: error
 
   release:
     name: Publish release
+    if: github.ref_type == 'tag'
     needs:
       - iso_build
       - source_code_archive
       - ventoy_injection
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Download release artifacts
         uses: actions/download-artifact@v7
+        with:
+          path: release-assets
+          merge-multiple: true
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
+          fail_on_unmatched_files: true
           files: |
-            arch_linux.iso
-            source_code.tar.gz
-            ventoy.json
-            live_injection.tar.gz
-
+            release-assets/arch_linux.iso
+            release-assets/source_code.tar.gz
+            release-assets/ventoy.json
+            release-assets/live_injection.tar.gz

@@ -22,9 +22,6 @@ function install () {
     [[ -d "$HOME/lua-language-server" ]] || { git clone https://github.com/LuaLS/lua-language-server ~/lua-language-server ; ( cd ~/lua-language-server; chmod +x make.sh; ./make.sh; ); }
     uv tool install pyrefly
     cargo install neocmakelsp
-
-    # TODO: Write to .zshrc export statements
-
 }
 
 source "$ROOT_DIR/scripts/utils/setup.sh"

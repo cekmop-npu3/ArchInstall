@@ -1,1 +1,1 @@
-zsh zsh-completions curl xdg-utils uv python-docs npm git postgresql-docs docker docker-buildx docker-compose
+zsh zsh-completions curl xdg-utils uv python-docs npm git postgresql-docs docker docker-buildx docker-compose clang
