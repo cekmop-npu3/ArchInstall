@@ -21,6 +21,33 @@ function clear-history () {
     fc -p "$HISTFILE"
 }
 
+
+function Man () {
+    local usage="Usage: Man [OPTIONS] <COMMAND> [SUBCOMMAND...]
+
+Options:
+  -h, --help              Display this help and exit
+
+Exit status:
+  0  Success
+  1  No COMMAND passed to Man
+  2  COMMAND is not an executable
+  3  COMMAND doesn't have (-h|--help) options"
+
+    [[ $# -ne 0 ]] || { echo "$usage" ; return 1; }
+
+    [[ "$1" == "-h" || "$1" == "--help" ]] && { echo "$usage" ; return 0; }
+
+    command -v "$1" &>/dev/null || { echo "$usage" ; return 2; }
+    local cmd="$1"
+    shift 1
+
+    local help_text="$("$cmd" $@ --help 2>&1 || "$cmd" $@ -h 2>&1 || echo "")"
+    [[ -n "$help_text" ]] || { echo "$usage" ; return 3; }
+    
+    echo "$help_text" | nvim -c 'Man!' -
+}
+
 # Parameters:
 #  $1 -> documentation directory
 #  $2 -> URL to open

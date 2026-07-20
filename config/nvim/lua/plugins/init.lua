@@ -31,6 +31,7 @@ function M.setup()
         { src = "https://github.com/projekt0n/github-nvim-theme.git" },
         { src = "https://github.com/MeanderingProgrammer/render-markdown.nvim.git" },
         { src = "https://github.com/brianhuster/live-preview.nvim.git" },
+        { src = "https://github.com/NickTsaizer/splitasm.nvim.git" },
         { src = "https://github.com/akinsho/toggleterm.nvim.git" }
     })
 
@@ -56,6 +57,7 @@ function M.setup()
         "plugins.popups",
         "plugins.noice",
         "plugins.render_markdown",
+        "plugins.splitasm",
         "plugins.alpha",
         "plugins.lualine"
     }
