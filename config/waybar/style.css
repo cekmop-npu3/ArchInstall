@@ -7,7 +7,7 @@ window#waybar {
     background-color: #252627; 
 }
 
-#battery, #clock, #pulseaudio, #pulseaudio-slider, #network, #bluetooth, #language, #workspaces, #custom-poweroff {
+#battery, #clock, #pulseaudio, #pulseaudio-slider, #network, #bluetooth, #language, #workspaces, #custom-notification, #custom-poweroff {
     background-color: #191a1b;
     padding: 0.5em 1em;
     border-radius: 1em;
@@ -16,6 +16,10 @@ window#waybar {
 
 #battery.warning {
     color: #c5211e;
+}
+
+#battery.critical {
+    color: #ff5f56;
 }
 
 #pulseaudio-slider slider {

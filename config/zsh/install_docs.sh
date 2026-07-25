@@ -4,14 +4,26 @@ declare PASSWORD=""
 read -t 0 && read -r PASSWORD
 
 function main () {
-    [[ -d "$HOME/.local/share/doc/C" ]] || (
-        mkdir -p ~/.local/share/doc/C
+    mkdir -p ~/.local/share/doc/C ~/.local/share/doc/C++
+    [[ -f "$HOME/.local/share/doc/C/glibc.html" ]] || (
         curl -L \
             https://sourceware.org/glibc/manual/latest/html_mono/libc.html \
             -o ~/.local/share/doc/C/glibc.html
+    )
+    [[ -f "$HOME/.local/share/doc/C/C-language.html" ]] || (
         curl -L \
             https://www.gnu.org/software/c-intro-and-ref/manual/c-intro-and-ref.html \
             -o ~/.local/share/doc/C/C-language.html
+    )
+    [[ -f "$HOME/.local/share/doc/C/c23.pdf" ]] || (
+        curl -L \
+            https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3220.pdf \
+            -o ~/.local/share/doc/C/c23.pdf
+    )
+    [[ -f "$HOME/.local/share/doc/C++/cpp23.pdf" ]] || (
+        curl -L \
+            https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2023/n4950.pdf \
+            -o ~/.local/share/doc/C++/cpp23.pdf
     )
     [[ -d "$HOME/.local/share/doc/github-docs" ]] || (
         mkdir -p ~/.local/share/doc/github-docs
@@ -52,4 +64,3 @@ function main () {
 }
 
 main 
-

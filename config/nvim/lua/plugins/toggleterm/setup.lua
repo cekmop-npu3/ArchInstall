@@ -13,7 +13,7 @@ function M.setup()
         persist_mode = true,
     })
 
-    require("plugins.toggleterm.keymaps").setup(toggleterm.toggle)
+    require("plugins.toggleterm.keymaps").setup()
 end
 
 return M

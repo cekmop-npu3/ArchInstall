@@ -16,6 +16,11 @@
             "setup": "$ROOT_DIR/config/hypr/setup.sh"
         },
         {
+            "target": "$ROOT_DIR/config/pypr",
+            "link": "~/.config/pypr",
+            "setup": "$ROOT_DIR/config/pypr/setup.sh"
+        },
+        {
             "target": "$ROOT_DIR/config/nvim",
             "link": "~/.config/nvim",
             "setup": "$ROOT_DIR/config/nvim/setup.sh"
@@ -24,6 +29,11 @@
             "target": "$ROOT_DIR/config/waybar",
             "link": "~/.config/waybar",
             "setup": "$ROOT_DIR/config/waybar/setup.sh"
+        },
+        {
+            "target": "$ROOT_DIR/config/swaync",
+            "link": "~/.config/swaync",
+            "setup": "$ROOT_DIR/config/swaync/setup.sh"
         },
         {
             "target": "$ROOT_DIR/config/rofi",

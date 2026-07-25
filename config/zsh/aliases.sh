@@ -9,6 +9,8 @@ alias bash-docs='xdg-open /usr/share/doc/bash/bash.html'
 alias cmake-docs='xdg-open /usr/share/doc/cmake/html/index.html'
 alias postgresql-docs='xdg-open /usr/share/doc/postgresql/html/index.html'
 alias c-docs='xdg-open ~/.local/share/doc/C/C-language.html'
+alias c23='xdg-open ~/.local/share/doc/C/c23.pdf'
+alias cpp23='xdg-open ~/.local/share/doc/C++/cpp23.pdf'
 alias glibc-docs='xdg-open ~/.local/share/doc/C/glibc.html'
 alias make-docs='xdg-open ~/.local/share/doc/make/make.html'
 alias gcc-docs='xdg-open ~/.local/share/doc/gcc/gcc/index.html'
@@ -84,4 +86,3 @@ function docker-docs () {
         "http://localhost:8010" \
         python -m http.server 8010
 }
-

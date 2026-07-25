@@ -7,6 +7,7 @@ function M.setup()
     end
 
     vim.o.foldcolumn = "1"
+    vim.o.foldmethod = "manual"
     vim.o.foldlevel = 99
     vim.o.foldlevelstart = 99
     vim.o.foldenable = true

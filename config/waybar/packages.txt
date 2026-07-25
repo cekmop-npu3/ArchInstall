@@ -1,1 +1,1 @@
-waybar
+waybar swaync libnotify

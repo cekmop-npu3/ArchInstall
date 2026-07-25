@@ -8,6 +8,7 @@
         "~/ArchInstall/config/waybar/modules/network.jsonc",
         "~/ArchInstall/config/waybar/modules/bluetooth.jsonc",
         "~/ArchInstall/config/waybar/modules/workspaces.jsonc",
+        "~/ArchInstall/config/waybar/modules/notification.jsonc",
         "~/ArchInstall/config/waybar/modules/poweroff.jsonc"
     ],
     "modules-left": [
@@ -23,6 +24,7 @@
         "pulseaudio",
         "pulseaudio/slider",
         "battery",
+        "custom/notification",
         "custom/poweroff"
     ]
 }

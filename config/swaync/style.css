@@ -1,0 +1,140 @@
+* {
+    font-family: "JetBrainsMono Nerd Font";
+    font-size: 14px;
+    color: #f0f0f0;
+}
+
+.notification-row {
+    outline: none;
+}
+
+.notification-row:focus,
+.notification-row:hover {
+    background: transparent;
+}
+
+.notification {
+    background: #191a1b;
+    border: 1px solid #353637;
+    border-radius: 16px;
+    margin: 8px 12px;
+    padding: 0;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.notification-content {
+    padding: 14px;
+}
+
+.notification.low {
+    border-left: 4px solid #77797c;
+}
+
+.notification.normal {
+    border-left: 4px solid #d27e99;
+}
+
+.notification.critical {
+    border-left: 4px solid #ff5f56;
+}
+
+.summary {
+    font-size: 15px;
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.time {
+    color: #929497;
+}
+
+.body {
+    color: #c9cacc;
+}
+
+.close-button {
+    background: transparent;
+    border: none;
+    border-radius: 999px;
+    color: #929497;
+    min-width: 28px;
+    min-height: 28px;
+}
+
+.close-button:hover {
+    background: #353637;
+    color: #ffffff;
+}
+
+.notification-action {
+    background: #252627;
+    border: 1px solid #353637;
+    border-radius: 10px;
+    margin: 4px;
+}
+
+.notification-action:hover {
+    background: #d27e99;
+    color: #191a1b;
+}
+
+.control-center {
+    background: rgba(25, 26, 27, 0.97);
+    border: 1px solid #353637;
+    border-radius: 18px;
+    margin: 10px;
+    padding: 12px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55);
+}
+
+.control-center-list {
+    background: transparent;
+}
+
+.control-center-list-placeholder {
+    color: #77797c;
+}
+
+.widget-title {
+    margin: 6px 8px 12px;
+}
+
+.widget-title > label {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.widget-title > button,
+.widget-dnd > switch {
+    background: #252627;
+    border: 1px solid #353637;
+    border-radius: 12px;
+}
+
+.widget-title > button:hover,
+.widget-dnd > switch:checked {
+    background: #d27e99;
+    color: #191a1b;
+}
+
+.widget-dnd,
+.widget-mpris,
+.widget-volume,
+.widget-backlight {
+    background: #252627;
+    border-radius: 14px;
+    margin: 6px 8px;
+    padding: 10px;
+}
+
+scale trough {
+    background: #191a1b;
+    border-radius: 999px;
+    min-height: 8px;
+}
+
+scale highlight {
+    background: #d27e99;
+    border-radius: 999px;
+}
+

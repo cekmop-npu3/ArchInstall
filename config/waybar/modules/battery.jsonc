@@ -3,6 +3,14 @@
         "format": "{capacity}% {icon}",
         "format-icons": ["󰂎", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"],
         "format-charging": "{capacity}% 󰉁",
+        "states": {
+            "warning": 20,
+            "critical": 10
+        },
+        "events": {
+            "on-discharging-warning": "notify-send --app-name='Power' --urgency=normal --icon=battery-low-symbolic --expire-time=10000 'Low battery' 'Battery level has fallen below 20%.'",
+            "on-discharging-critical": "notify-send --app-name='Power' --urgency=critical --icon=battery-caution-symbolic --expire-time=0 'Critical battery' 'Battery level has fallen below 10%. Connect the charger now.'"
+        },
         "tooltip": false
     }
 }

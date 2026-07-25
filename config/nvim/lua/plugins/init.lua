@@ -26,6 +26,7 @@ function M.setup()
         { src = "https://github.com/nvim-tree/nvim-tree.lua.git" },
         { src = "https://github.com/nvim-tree/nvim-web-devicons.git" },
         { src = "https://github.com/nvim-treesitter/nvim-treesitter.git" },
+        { src = "https://github.com/akinsho/bufferline.nvim.git" },
         { src = "https://github.com/nvim-lualine/lualine.nvim.git" },
         { src = "https://github.com/goolord/alpha-nvim.git" },
         { src = "https://github.com/projekt0n/github-nvim-theme.git" },
@@ -59,8 +60,10 @@ function M.setup()
         "plugins.render_markdown",
         "plugins.splitasm",
         "plugins.alpha",
-        "plugins.lualine"
+        "plugins.bufferline",
     }
+
+    table.insert(plugin_modules, "plugins.lualine")
 
     for _, plugin in ipairs(plugin_modules) do
         require(plugin .. ".setup").setup()

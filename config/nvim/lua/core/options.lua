@@ -4,11 +4,13 @@ function M.setup()
     vim.g.mapleader = " "
     vim.g.loaded_netrwPlugin = 1
 
-    vim.o.showmode = true
+    vim.o.showmode = false
     vim.o.scrolloff = 5
     vim.o.matchpairs = "(:),{:},[:],<:>"
     vim.o.number = true
-    vim.o.ruler = true
+    vim.o.ruler = false
+    vim.o.laststatus = 3
+    vim.o.cmdheight = 0
     vim.o.tabstop = 4
     vim.o.shiftwidth = 4
     vim.o.softtabstop = 4

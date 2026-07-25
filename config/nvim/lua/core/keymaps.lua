@@ -75,10 +75,6 @@ function M.setup()
         end
     end, { desc = "Run macro by register" })
 
-    vim.keymap.set("n", "zr", "zO", { remap = true, desc = "Open folds recursively" })
-    vim.keymap.set("n", "zc", "zC", { remap = true, desc = "Close folds recursively" })
-    vim.keymap.set("n", "zE", "zD", { remap = true, desc = "Delete folds in cursor line" })
-
 end
 
 return M

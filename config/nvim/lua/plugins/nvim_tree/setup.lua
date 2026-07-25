@@ -17,6 +17,9 @@ function M.setup()
             enable = true,
             update_root = false,
         },
+        filesystem_watchers = {
+            debounce_delay = 15,
+        },
         view = {
             width = 36,
             preserve_window_proportions = true,

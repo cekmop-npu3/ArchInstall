@@ -21,6 +21,13 @@ function M.on_attach(ev, client)
         end, vim.tbl_extend("force", opts, { desc = "LSP format buffer" }))
     end
 
+    if client:supports_method("textDocument/inlayHint") then
+        vim.keymap.set("n", "<leader>ih", function()
+            local filter = { bufnr = ev.buf }
+            vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled(filter), filter)
+        end, vim.tbl_extend("force", opts, { desc = "Toggle LSP inlay hints" }))
+    end
+
     vim.keymap.set("n", "<leader>d", vim.diagnostic.open_float, vim.tbl_extend("force", opts, { desc = "Show diagnostic" }))
 
     local telescope_keymaps = require("plugins.telescope.keymaps")

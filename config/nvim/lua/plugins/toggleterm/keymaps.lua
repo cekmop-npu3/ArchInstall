@@ -1,11 +1,16 @@
 local M = {}
 
----@param toggle_function fun(count: number?, size: number?, dir: string?, direction: string?, name: string?)
-function M.setup(toggle_function)
-    vim.keymap.set("n", "<leader>t", function ()
-        toggle_function(nil, 15)
-    end
-)
+function M.setup()
+    vim.keymap.set("n", "<leader>t", function()
+        local Terminal = require("toggleterm.terminal").Terminal
+
+        Terminal
+            :new({
+                direction = "tab",
+                size = 15,
+            })
+            :toggle()
+    end, { desc = "Open fresh terminal" })
 end
 
 return M

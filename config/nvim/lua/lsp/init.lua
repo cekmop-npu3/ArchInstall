@@ -17,11 +17,15 @@ function M.setup()
         callback = on_lsp_attach,
     })
 
-    vim.lsp.config["clangd"] = require("lsp.config.clangd")
+    local clangd = require("lsp.config.clangd")
+    vim.lsp.config["clangd"] = clangd.c
+    vim.lsp.config["clangd_cpp"] = clangd.cpp
     vim.lsp.config["lua_ls"] = require("lsp.config.lua_ls")
     vim.lsp.config["pyrefly"] = require("lsp.config.pyrefly")
+    vim.lsp.config["neocmake"] = require("lsp.config.neocmake")
 
     vim.lsp.enable("clangd")
+    vim.lsp.enable("clangd_cpp")
     vim.lsp.enable("lua_ls")
     vim.lsp.enable("bashls")
     vim.lsp.enable("pyrefly")
