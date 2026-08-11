@@ -12,10 +12,13 @@ function M.setup()
             "markdown_inline",
             "python",
         },
+
         auto_install = true,
+
         highlight = {
             enable = true,
         },
+
         indent = {
             enable = true,
         },
@@ -23,3 +26,4 @@ function M.setup()
 end
 
 return M
+

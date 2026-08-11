@@ -12,10 +12,44 @@ function M.setup()
                 enabled = true,
             },
         },
-        file_types = { "markdown" },
+
+        file_types = {
+            "markdown",
+            "noice",
+        },
+
+        heading = {
+            icons = {
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+            },
+        },
+
+        bullet = {
+            icons = {
+                "• ",
+                "• ",
+                "• ",
+            },
+        },
+
+        overrides = {
+            buftype = {
+                nofile = {
+                    render_modes = true,
+                },
+            },
+        },
     })
+
+    vim.treesitter.language.register("markdown", "noice")
 
     require("plugins.render_markdown.keymaps").setup()
 end
 
 return M
+

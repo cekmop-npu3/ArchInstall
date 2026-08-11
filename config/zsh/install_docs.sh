@@ -61,6 +61,11 @@ function main () {
         curl -L https://gcc.gnu.org/onlinedocs/gcc-16.1.0/gcc-html.tar.gz \
              | tar -xz -C ~/.local/share/doc/gcc
     )
+    [[ -d "$HOME/.local/share/doc/nasm" ]] || (
+        mkdir -p ~/.local/share/doc/nasm
+        curl -L https://www.nasm.us/pub/nasm/releasebuilds/3.02/nasm-3.02-xdoc.tar.xz \
+             | tar -xJ -C ~/.local/share/doc/nasm --strip-components=2
+    )
 }
 
 main 
