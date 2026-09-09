@@ -79,3 +79,5 @@ sha256sum -c arch_linux.iso.sha256
 To use the release with Ventoy, copy `arch_linux.iso`, `live_injection.tar.gz`, and `ventoy.json` to the root of the Ventoy data partition. The configuration refers to `/arch_linux.iso` and `/live_injection.tar.gz`, so those filenames and locations must remain unchanged.
 
 The workflow publishes the ISO directly because Ventoy boots it directly. GitHub allows release assets smaller than 2 GiB; the workflow checks this limit before publishing and disables redundant artifact compression for the already-compressed ISO.
+
+The workflow caches the completed ISO. A push to `main` creates the cache when it is missing; later pushes reuse it. Tag releases can reuse the cache from `main` and only rebuild when it has expired or is otherwise unavailable. GitHub removes caches that have not been accessed for seven days.

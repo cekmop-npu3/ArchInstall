@@ -2,8 +2,11 @@ name: Release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -11,13 +14,22 @@ permissions:
 jobs:
   iso_build:
     name: Build ISO
+    if: github.ref_type == 'tag' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Restore ISO cache
+        id: iso-cache
+        uses: actions/cache@v6
+        with:
+          path: arch_linux.iso
+          key: arch-linux-iso-${{ runner.arch }}-v1
+
       - name: Build Arch Linux ISO
+        if: steps.iso-cache.outputs.cache-hit != 'true'
         run: |
           docker run --rm --privileged \
             --volume "$GITHUB_WORKSPACE:/workspace" \
@@ -47,6 +59,7 @@ jobs:
           sha256sum arch_linux.iso > arch_linux.iso.sha256
 
       - name: Upload ISO build artifact
+        if: github.ref_type == 'tag'
         uses: actions/upload-artifact@v7
         with:
           name: arch-linux-iso
@@ -59,6 +72,7 @@ jobs:
 
   ventoy_injection:
     name: Ventoy injection
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
 
     steps:
@@ -74,13 +88,17 @@ jobs:
             sh pack.sh
           )
 
+      - name: Stage Ventoy release files
+        run: |
+          mkdir release-files
+          cp ventoy/ventoy.json release-files/ventoy.json
+          cp LiveInjection/live_injection.tar.gz release-files/live_injection.tar.gz
+
       - name: Upload ventoy files
         uses: actions/upload-artifact@v7
         with:
           name: ventoy-files
-          path: |
-            ventoy/ventoy.json
-            LiveInjection/live_injection.tar.gz
+          path: release-files/*
           if-no-files-found: error
 
   release:
@@ -110,4 +128,3 @@ jobs:
             release-assets/arch_linux.iso.sha256
             release-assets/ventoy.json
             release-assets/live_injection.tar.gz
-
