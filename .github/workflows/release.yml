@@ -5,12 +5,18 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: read
+
 jobs:
   iso_build:
     name: Build ISO
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
       - name: Build Arch Linux ISO
         run: |
           docker run --rm --privileged \
@@ -29,12 +35,27 @@ jobs:
               mv /workspace/out/*.iso /workspace/arch_linux.iso
             '
 
-      - name: Upload ISO artifact
+      - name: Validate release asset size and create checksum
+        run: |
+          set -euo pipefail
+          max_release_asset_bytes=$((2 * 1024 * 1024 * 1024 - 1))
+          iso_size=$(stat --format=%s arch_linux.iso)
+          if (( iso_size > max_release_asset_bytes )); then
+            echo "arch_linux.iso is ${iso_size} bytes; GitHub release assets must be smaller than 2 GiB." >&2
+            exit 1
+          fi
+          sha256sum arch_linux.iso > arch_linux.iso.sha256
+
+      - name: Upload ISO build artifact
         uses: actions/upload-artifact@v7
         with:
           name: arch-linux-iso
-          path: arch_linux.iso
+          path: |
+            arch_linux.iso
+            arch_linux.iso.sha256
           if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
 
   ventoy_injection:
     name: Ventoy injection
@@ -86,5 +107,7 @@ jobs:
           fail_on_unmatched_files: true
           files: |
             release-assets/arch_linux.iso
+            release-assets/arch_linux.iso.sha256
             release-assets/ventoy.json
             release-assets/live_injection.tar.gz
+

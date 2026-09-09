@@ -30,8 +30,6 @@ function M.on_attach(ev, client)
 
     vim.keymap.set("n", "<leader>d", vim.diagnostic.open_float, vim.tbl_extend("force", opts, { desc = "Show diagnostic" }))
 
-    local telescope_keymaps = require("plugins.telescope.keymaps")
-    telescope_keymaps.on_lsp_attach(ev, client)
 end
 
 return M

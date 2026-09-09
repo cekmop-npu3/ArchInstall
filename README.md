@@ -1,51 +1,44 @@
 # ArchInstall
 
-ArchInstall is a collection of Bash scripts and personal configuration files for installing and configuring an Arch Linux system. It supports GPT/UEFI and MBR installations, optional LVM and LUKS, base-system provisioning, user creation, package management, and deployment of desktop dotfiles.
+ArchInstall is a personal Arch Linux installation and workstation-configuration repository. It provides Bash scripts for partitioning and provisioning a fresh system, then deploys the configuration stored in this checkout through symbolic links.
 
+The installer supports GPT/UEFI and MBR/BIOS layouts, optional LUKS and LVM, separate root and home filesystems, optional swap, GRUB, package installation, user creation, and desktop configuration deployment.
 
 ## Repository layout
 
 ```text
 .
-├── setup.sh                 # Initializes ROOT_DIR and script permissions
+├── setup.sh                 # Exports ROOT_DIR and marks project scripts executable
 ├── scripts/
-│   ├── install/             # Live-ISO disk and base-system installation
-│   ├── system/              # Reusable system administration commands
-│   └── utils/               # Shared option parsing and helper functions
-└── config/                  # Dotfiles, package manifests, and setup hooks
+│   ├── install/             # Live-ISO installation stages
+│   ├── system/              # Provisioning and administration commands
+│   └── utils/               # Shared Bash helpers
+├── config/                  # Dotfiles, package lists, and deployment hooks
+├── ventoy/                  # Live-ISO injection files
+└── .github/workflows/       # Tagged-release build and publishing workflow
 ```
 
 - [Installation scripts](scripts/install/README.md)
 - [System scripts](scripts/system/README.md)
-- [Configuration and dotfiles](config/README.md)
+- [Configuration deployment](config/README.md)
 
 ## Requirements
 
-- An Arch Linux live environment for a fresh installation
-- Bash, an internet connection, and root privileges
-- A checked-out copy of this repository
-- Familiarity with Arch installation and recovery procedures
+For a fresh installation, use an Arch Linux live environment, work as root, and have an internet connection. Clone this repository or otherwise copy it into that environment before running the scripts.
 
-The scripts assume the target system is mounted at `/mnt`. Package installation uses official Arch tools such as `pacstrap` and `pacman`.
-
-## Initialize the environment
-
-Run all commands from the repository root. `setup.sh` must be sourced so that its exported `ROOT_DIR` remains available to the other scripts:
+The scripts use `/mnt` as the target filesystem and call Arch tools such as `pacstrap`, `arch-chroot`, `mkinitcpio`, and `grub-install`. Read the script help before supplying non-interactive options:
 
 ```bash
 source ./setup.sh
-```
-
-To inspect any command before using it:
-
-```bash
 ./scripts/install/disk_formatting.sh --help
 ./scripts/system/install_packages.sh --help
 ```
 
-## Fresh-install outline
+`setup.sh` must be sourced, not executed, so that `ROOT_DIR` remains available to the other scripts.
 
-From an Arch live ISO, a typical interactive sequence is:
+## Fresh-install workflow
+
+Run these commands from the repository root in the live environment:
 
 ```bash
 source ./setup.sh
@@ -56,9 +49,9 @@ source ./setup.sh
 ./scripts/system/self_deploy.sh --interactive
 ```
 
-Review [scripts/install/README.md](scripts/install/README.md) before executing this sequence. In particular, `disk_formatting.sh` unmounts `/mnt`, repartitions the selected disk, creates filesystems, and mounts the new system.
+`disk_formatting.sh` unmounts `/mnt`, destroys existing partition data on the selected disk, and creates the target layout. Verify the device name and back up data before starting. The detailed order, supported layouts, and boot behavior are documented in [scripts/install/README.md](scripts/install/README.md).
 
-After booting into the installed system, initialize the repository again and deploy the desired configuration links:
+After booting the installed system, source `setup.sh` from the copied checkout and deploy the desired configuration:
 
 ```bash
 cd ~/ArchInstall
@@ -66,5 +59,23 @@ source ./setup.sh
 ./config/symlinks.sh --interactive
 ```
 
-See [config/README.md](config/README.md) for the managed paths and setup-hook behavior.
+## Release and Ventoy artifacts
 
+Pushing a tag that begins with `v` runs the release workflow. It builds a current Arch Linux ISO with `git` included, packages the live-environment injection, and publishes these assets:
+
+| Asset | Purpose |
+| --- | --- |
+| `arch_linux.iso` | Bootable Arch Linux ISO. |
+| `arch_linux.iso.sha256` | SHA-256 checksum for the ISO. |
+| `live_injection.tar.gz` | Ventoy LiveInjection archive containing the live-environment additions. |
+| `ventoy.json` | Ventoy configuration that associates the ISO with the injection archive. |
+
+Verify the ISO before use:
+
+```bash
+sha256sum -c arch_linux.iso.sha256
+```
+
+To use the release with Ventoy, copy `arch_linux.iso`, `live_injection.tar.gz`, and `ventoy.json` to the root of the Ventoy data partition. The configuration refers to `/arch_linux.iso` and `/live_injection.tar.gz`, so those filenames and locations must remain unchanged.
+
+The workflow publishes the ISO directly because Ventoy boots it directly. GitHub allows release assets smaller than 2 GiB; the workflow checks this limit before publishing and disables redundant artifact compression for the already-compressed ISO.

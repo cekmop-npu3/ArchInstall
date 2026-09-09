@@ -60,8 +60,6 @@ function M.open()
     local finders = require("telescope.finders")
     local config = require("telescope.config").values
     local previewers = require("telescope.previewers")
-    local actions = require("telescope.actions")
-    local action_state = require("telescope.actions.state")
 
     local lines = vim.fn.systemlist({ python_command(), "-c", symbol_script })
     if vim.v.shell_error ~= 0 then
@@ -99,49 +97,14 @@ function M.open()
             end,
         }),
         attach_mappings = function(prompt_bufnr, map)
-            local function selected_target()
-                local selection = action_state.get_selected_entry()
-                return selection and selection.value and selection.value.target
-            end
-
-            local function view_docs(open_command)
-                local target = selected_target()
-                if target then
-                    actions.close(prompt_bufnr)
-                    show_documentation(target, open_command)
-                end
-            end
-
-            -- Match the selection mappings configured for the other Telescope
-            -- pickers: Enter uses the current window and C-h opens a split.
-            actions.select_default:replace(function()
-                view_docs("enew")
-            end)
-            map("i", "<CR>", function()
-                view_docs("enew")
-            end)
-            map("n", "<CR>", function()
-                view_docs("enew")
-            end)
-            map("i", "<C-h>", function()
-                view_docs("new")
-            end)
-            map("n", "<C-h>", function()
-                view_docs("new")
-            end)
-            map("i", "<C-v>", function()
-                view_docs("vnew")
-            end)
-            map("n", "<C-v>", function()
-                view_docs("vnew")
-            end)
-            map("i", "<C-t>", function()
-                view_docs("tabnew")
-            end)
-            map("n", "<C-t>", function()
-                view_docs("tabnew")
-            end)
-            return true
+            return require("plugins.telescope.selection").attach_open_mappings(prompt_bufnr, map, function(entry, command)
+                show_documentation(entry.target, command)
+            end, {
+                current = "enew",
+                horizontal = "new",
+                vertical = "vnew",
+                tab = "tabnew",
+            })
         end,
     }):find()
 end

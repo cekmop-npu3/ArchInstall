@@ -1,74 +1,69 @@
 # System scripts
 
-This directory contains reusable provisioning and administration scripts. Some work both from an Arch live ISO against `/mnt` and from an already installed Arch system.
-
-## Setup
-
-From the repository root, initialize the shared environment first:
+These commands provision a mounted installation from the live ISO or manage an already-installed Arch system. Initialize the repository first:
 
 ```bash
 source ./setup.sh
 ```
 
-Use each script's `--help` output for its complete options and exit codes.
+Each command provides its complete arguments and exit codes through `--help`.
 
 ## Commands
 
 ### `add_user.sh`
 
-Creates a user, sets its password, adds it to the `wheel`, `video`, `render`, and `input` groups, and enables sudo access for `wheel` through `/etc/sudoers.d/10-wheel`.
+Creates a user, sets its password, adds it to `wheel`, `video`, `render`, and `input`, and enables password-based sudo access for the `wheel` group.
 
 ```bash
 ./scripts/system/add_user.sh --interactive
 ```
 
-When run from the live ISO it operates inside `/mnt` through `arch-chroot`. On an installed system it must be run with sufficient privileges.
+From the live ISO, the account is created inside `/mnt` through `arch-chroot`. On an installed system, run it with sufficient privileges.
 
 ### `install_packages.sh`
 
-Installs packages supplied as operands or parsed from a manifest. In the live ISO it uses `pacstrap` against `/mnt`; on an installed system it uses `pacman` and `sudo` when needed.
+Installs package operands or package names from a manifest:
 
 ```bash
 ./scripts/system/install_packages.sh git rsync
 ./scripts/system/install_packages.sh --file ./config/waybar/packages.txt
 ```
 
-For installed-system operations that require sudo, the script reads the password from standard input:
+In the live ISO, it uses `pacstrap` against `/mnt`; on an installed system, it runs `pacman` and reads a sudo password from standard input when required:
 
 ```bash
 ./scripts/system/install_packages.sh git <<< "$PASSWORD"
 ```
 
-Package files may contain whitespace-separated names and `#` comments. The `--delete` option removes packages from a manifest on an installed system; deletion is not supported through `pacstrap`.
+Package manifests accept whitespace-separated package names and `#` comments. `--delete` is available only on an installed system.
 
 ### `mirrorlist.sh`
 
-Installs `reflector` if necessary and generates a mirror list from recent HTTPS mirrors in the Netherlands, Germany, France, and Belgium, sorted by rate.
+Installs `reflector` when needed and writes a mirror list using recent HTTPS mirrors from the Netherlands, Germany, France, and Belgium, sorted by rate.
 
 ```bash
 ./scripts/system/mirrorlist.sh <<< "$PASSWORD"
 ```
 
-From the live ISO it writes `/mnt/etc/pacman.d/mirrorlist`; otherwise it writes `/etc/pacman.d/mirrorlist` through sudo.
+In the live environment it writes `/mnt/etc/pacman.d/mirrorlist`; otherwise it writes `/etc/pacman.d/mirrorlist` through sudo.
 
 ### `self_deploy.sh`
 
-Copies the complete repository to a selected user's home using `rsync`, preserving ownership for that user. In the live environment the destination is beneath `/mnt`; on an installed system it is the user's normal home directory.
+Copies the complete repository with `rsync` into a selected account's home directory and applies that account's ownership. The default account is `root`.
 
 ```bash
 ./scripts/system/self_deploy.sh --interactive
 ```
 
-The default target user is `root`. Select the regular account created by `add_user.sh` if that account should own and use the repository.
+From the live ISO, the destination is below `/mnt`; on an installed system it is the selected account's normal home directory. Use the regular account created by `add_user.sh` when it should own and deploy the dotfiles.
 
 ## Typical live-ISO continuation
 
-After the scripts in `scripts/install/` have created and configured `/mnt`:
+After `scripts/install/` has mounted and configured `/mnt`:
 
 ```bash
 ./scripts/system/add_user.sh --interactive
 ./scripts/system/self_deploy.sh --interactive
 ```
 
-After reboot, source `setup.sh` from the copied repository before running package or configuration commands.
-
+After reboot, source `setup.sh` from the copied checkout before running system or configuration commands.

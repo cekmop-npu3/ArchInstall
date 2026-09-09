@@ -14,8 +14,7 @@ function M.setup()
         },
 
         file_types = {
-            "markdown",
-            "noice",
+            "markdown"
         },
 
         heading = {
@@ -45,8 +44,6 @@ function M.setup()
             },
         },
     })
-
-    vim.treesitter.language.register("markdown", "noice")
 
     require("plugins.render_markdown.keymaps").setup()
 end

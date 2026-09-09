@@ -47,8 +47,6 @@ function M.open(opts)
     local finders = require("telescope.finders")
     local config = require("telescope.config").values
     local previewers = require("telescope.previewers")
-    local actions = require("telescope.actions")
-    local action_state = require("telescope.actions.state")
 
     pickers.new({}, {
         prompt_title = opts.prompt_title or "Manual Pages",
@@ -76,46 +74,15 @@ function M.open(opts)
             end,
         }),
         attach_mappings = function(prompt_bufnr, map)
-            local function open_selected(command)
-                local selection = action_state.get_selected_entry()
-                if not selection or not selection.value then
-                    return
-                end
-
-                actions.close(prompt_bufnr)
-                local page = selection.value
+            return require("plugins.telescope.selection").attach_open_mappings(prompt_bufnr, map, function(page, command)
                 local uri = ("man://%s(%s)"):format(page.name, page.section)
                 vim.cmd({ cmd = command, args = { uri } })
-            end
-
-            actions.select_default:replace(function()
-                open_selected("edit")
-            end)
-            map("i", "<CR>", function()
-                open_selected("edit")
-            end)
-            map("n", "<CR>", function()
-                open_selected("edit")
-            end)
-            map("i", "<C-h>", function()
-                open_selected("split")
-            end)
-            map("n", "<C-h>", function()
-                open_selected("split")
-            end)
-            map("i", "<C-v>", function()
-                open_selected("vsplit")
-            end)
-            map("n", "<C-v>", function()
-                open_selected("vsplit")
-            end)
-            map("i", "<C-t>", function()
-                open_selected("tabedit")
-            end)
-            map("n", "<C-t>", function()
-                open_selected("tabedit")
-            end)
-            return true
+            end, {
+                current = "edit",
+                horizontal = "split",
+                vertical = "vsplit",
+                tab = "tabedit",
+            })
         end,
     }):find()
 end

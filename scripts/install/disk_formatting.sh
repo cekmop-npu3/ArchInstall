@@ -253,7 +253,7 @@ function disk_partition () {
 
     if [[ "$partition" == "GPT" ]]; then
         script+="label: gpt\n"
-        script+="size=${min_boot_size}G\n"
+        script+="size=${min_boot_size}G, type=U\n"
     else
         script+="label: dos\n"
         script+="size=${min_boot_size}G, bootable\n"

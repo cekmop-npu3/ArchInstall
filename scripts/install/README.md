@@ -1,48 +1,48 @@
 # Installation scripts
 
-These scripts perform the destructive and live-environment stages of an Arch Linux installation. They are intended to run from the Arch ISO, with the target system mounted at `/mnt`.
+These scripts perform the destructive live-environment stages of an Arch Linux installation. Run them from an Arch ISO with the repository initialized by `source ./setup.sh`.
 
-> `disk_formatting.sh` erases and repartitions the selected disk. Verify the device name and back up anything important before continuing.
+> `disk_formatting.sh` unmounts `/mnt`, wipes the selected disk's partition table, and recreates its filesystems. Confirm the disk path and back up all required data first.
 
 ## Files
 
 | File | Purpose |
 | --- | --- |
-| `disk_formatting.sh` | Partitions, encrypts, formats, and mounts the target disk. |
-| `system_configuration.sh` | Installs core packages and configures the target OS. |
-| `boot_configuration.sh` | Generates mount and boot configuration and installs GRUB. |
-| `packages.txt` | Base package manifest parsed by the system package installer. |
+| `disk_formatting.sh` | Partitions, optionally encrypts, formats, and mounts the target disk. |
+| `system_configuration.sh` | Installs the base package manifest and configures locale, time, hostname, and console settings. |
+| `boot_configuration.sh` | Generates filesystem and boot configuration, then installs GRUB. |
+| `packages.txt` | Package manifest installed into the target system. |
 
 ## Preparation
 
-Clone or copy the repository into the live environment, change to its root, and source the initializer:
+Clone or copy the repository into the live environment and source the initializer from the repository root:
 
 ```bash
 source ./setup.sh
 ```
 
-This exports `ROOT_DIR` and makes the repository scripts executable. Every script in this directory expects that environment variable.
+This exports `ROOT_DIR`, which every installer script requires, and marks project scripts executable.
 
-## Recommended order
+## Installation order
 
 ### 1. Partition, format, and mount
 
-The safest way to explore the available choices is interactive mode:
+Use interactive mode to choose the layout:
 
 ```bash
 ./scripts/install/disk_formatting.sh --interactive
 ```
 
-The script supports:
+The script creates a 1 GiB `/boot` partition first. GPT installations format it as FAT32 and assign `sfdisk` type `U` (EFI System Partition); MBR installations use an ext4 boot partition with the bootable flag. Root and home use ext4. The finished target is mounted below `/mnt`.
 
-- GPT or MBR partition tables
-- A separate root and home filesystem, plus optional swap
-- Optional LVM
-- Optional LUKS encryption
-- ext4 for root and home
-- mounting the completed layout beneath `/mnt`
+Supported choices include:
 
-For automation, provide options directly:
+- GPT/UEFI or MBR/BIOS partition tables
+- separate root and home filesystems, with optional swap
+- LUKS encryption
+- LVM, with or without LUKS
+
+For a non-interactive layout, supply options directly:
 
 ```bash
 ./scripts/install/disk_formatting.sh \
@@ -54,7 +54,7 @@ For automation, provide options directly:
   --luks -
 ```
 
-When `--luks -` is used, the passphrase is read from the `PASSWORD` environment variable. Avoid placing secrets directly in shell history. Run `--help` for the authoritative option and exit-code list.
+With `--luks -`, the passphrase is read from the `PASSWORD` environment variable. Do not place passphrases in shell history. Use `--help` for the current option and exit-status reference.
 
 ### 2. Install and configure the base system
 
@@ -62,9 +62,9 @@ When `--luks -` is used, the passphrase is read from the `PASSWORD` environment 
 ./scripts/install/system_configuration.sh --interactive
 ```
 
-This installs the packages listed in `packages.txt`, sets the timezone and hostname, generates the `en_US.UTF-8` and `ru_RU.UTF-8` locales, configures the console keymap and hosts file, and pins the LTS kernel packages in `pacman.conf`.
+This installs `packages.txt`, sets the timezone and hostname, generates `en_US.UTF-8` and `ru_RU.UTF-8`, writes the US console keymap and hosts file, and pins the LTS kernel packages in `pacman.conf`.
 
-Non-interactive example:
+Non-interactive use requires both settings:
 
 ```bash
 ./scripts/install/system_configuration.sh \
@@ -72,24 +72,21 @@ Non-interactive example:
   --hostname archbox
 ```
 
-Review `packages.txt` first. It currently enables Intel CPU microcode; switch to `amd-ucode` when installing on an AMD system.
+Review `packages.txt` before installation. It currently includes Intel microcode; replace it with `amd-ucode` for an AMD system.
 
-### 3. Configure boot
+### 3. Configure the bootloader
 
 ```bash
 ./scripts/install/boot_configuration.sh
 ```
 
-This generates `/etc/fstab`, detects LUKS and LVM from the mounted root, installs GRUB dependencies, configures initramfs hooks, installs GRUB, and generates its configuration. GPT layouts use the EFI partition mounted at `/boot`; MBR layouts install GRUB to the disk.
+The script generates `/etc/fstab`, detects the mounted root layout, installs needed GRUB, LVM, and LUKS packages, configures initramfs hooks, and generates GRUB configuration. GPT layouts install UEFI GRUB using the ESP mounted at `/boot`; MBR layouts install BIOS GRUB to the selected disk.
 
-### 4. Continue with system provisioning
-
-Create a user and optionally copy this repository into the installed system:
+### 4. Create a user and copy the repository
 
 ```bash
 ./scripts/system/add_user.sh --interactive
 ./scripts/system/self_deploy.sh --interactive
 ```
 
-See [../system/README.md](../system/README.md) for details.
-
+Choose the new regular account in `self_deploy.sh` when the checkout should be owned by that account. See [../system/README.md](../system/README.md) for command details.

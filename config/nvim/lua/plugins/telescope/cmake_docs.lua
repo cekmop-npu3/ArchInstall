@@ -37,8 +37,6 @@ function M.open()
     local finders = require("telescope.finders")
     local config = require("telescope.config").values
     local previewers = require("telescope.previewers")
-    local actions = require("telescope.actions")
-    local action_state = require("telescope.actions.state")
     local entries = {}
 
     for _, category in ipairs(categories) do
@@ -79,42 +77,12 @@ function M.open()
             end,
         }),
         attach_mappings = function(prompt_bufnr, map)
-            local function open_selected(open_command)
-                local selection = action_state.get_selected_entry()
-                if selection and selection.value then
-                    actions.close(prompt_bufnr)
-                    show_documentation(selection.value, open_command)
-                end
-            end
-
-            actions.select_default:replace(function()
-                open_selected("enew")
-            end)
-            map("i", "<CR>", function()
-                open_selected("enew")
-            end)
-            map("n", "<CR>", function()
-                open_selected("enew")
-            end)
-            map("i", "<C-h>", function()
-                open_selected("new")
-            end)
-            map("n", "<C-h>", function()
-                open_selected("new")
-            end)
-            map("i", "<C-v>", function()
-                open_selected("vnew")
-            end)
-            map("n", "<C-v>", function()
-                open_selected("vnew")
-            end)
-            map("i", "<C-t>", function()
-                open_selected("tabnew")
-            end)
-            map("n", "<C-t>", function()
-                open_selected("tabnew")
-            end)
-            return true
+            return require("plugins.telescope.selection").attach_open_mappings(prompt_bufnr, map, show_documentation, {
+                current = "enew",
+                horizontal = "new",
+                vertical = "vnew",
+                tab = "tabnew",
+            })
         end,
     }):find()
 end

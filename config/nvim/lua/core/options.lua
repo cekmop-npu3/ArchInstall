@@ -29,6 +29,7 @@ function M.setup()
     vim.o.confirm = true
     vim.o.wrap = true
     vim.o.shell = "/usr/bin/zsh"
+    vim.o.winborder = "rounded"
 
     vim.g.netrw_browse_split = 0
     vim.g.netrw_banner = 0

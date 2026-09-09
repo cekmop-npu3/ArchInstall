@@ -21,10 +21,6 @@ function M.setup()
         { src = "https://github.com/kevinhwang91/nvim-ufo.git" },
         { src = "https://github.com/mfussenegger/nvim-dap" },
 
-        { src = "https://github.com/folke/noice.nvim.git" },
-        { src = "https://github.com/MunifTanjim/nui.nvim.git" },
-        { src = "https://github.com/rcarriga/nvim-notify.git" },
-
         { src = "https://github.com/nvim-tree/nvim-tree.lua.git" },
         { src = "https://github.com/nvim-tree/nvim-web-devicons.git" },
 
@@ -39,6 +35,8 @@ function M.setup()
         { src = "https://github.com/brianhuster/live-preview.nvim.git" },
         { src = "https://github.com/NickTsaizer/splitasm.nvim.git" },
         { src = "https://github.com/akinsho/toggleterm.nvim.git" },
+        { src = "https://github.com/ray-x/lsp_signature.nvim.git" },
+        { src = "https://github.com/folke/flash.nvim.git" }
     })
 
     if not ok_add then
@@ -64,16 +62,13 @@ function M.setup()
         "plugins.cmp",
         "plugins.github_colorscheme",
         "plugins.live_preview",
+        "plugins.lsp_signature",
         "plugins.toggleterm",
-        "plugins.popups",
-
-        "plugins.noice",
-
-        "plugins.splitasm",
         "plugins.alpha",
         "plugins.bufferline",
         "plugins.lualine",
         "plugins.nvim_tree",
+        "plugins.flash"
     }
 
     for _, plugin in ipairs(plugin_modules) do
