@@ -1,0 +1,75 @@
+hl.env("XCURSOR_SIZE", "6")
+hl.env("HYPRCURSOR_SIZE", "6")
+
+hl.gesture({ fingers = 3, direction = "horizontal", action = "workspace" })
+
+hl.config({
+    general = {
+        border_size = 1,
+        gaps_in = 0,
+        gaps_out = 0,
+        resize_on_border = false,
+        allow_tearing = false,
+        layout = "dwindle",
+        no_focus_fallback = true,
+        col = {
+            active_border = "rgba(00000000)",
+            inactive_border = "rgba(00000000)",
+        },
+    },
+    decoration = {
+        active_opacity = 1.0,
+        inactive_opacity = 1.0,
+        fullscreen_opacity = 1.0,
+        dim_modal = true,
+        blur = {
+            enabled = true,
+            size = 2,
+            passes = 1,
+            popups = true,
+        },
+    },
+    misc = {
+        disable_hyprland_logo = true,
+        focus_on_activate = true,
+        enable_swallow = true,
+        swallow_regex = "^Alacritty$",
+        disable_splash_rendering = true,
+    },
+    input = {
+        kb_layout = "us,ru",
+        kb_options = "grp:win_space_toggle",
+        follow_mouse = 1,
+        numlock_by_default = true,
+        touchpad = {
+            drag_lock = true,
+            natural_scroll = true,
+        },
+    },
+    binds = { workspace_center_on = 1 },
+    cursor = {
+        persistent_warps = true,
+        warp_on_change_workspace = 2,
+    },
+    ecosystem = {
+        no_update_news = true,
+        no_donation_nag = true,
+        enforce_permissions = true,
+    },
+    dwindle = {
+        force_split = 2,
+        preserve_split = true,
+    },
+})
+
+hl.window_rule({
+    name = "gromit-mpx-no-blur-class",
+    match = { class = "^(Gromit-mpx)$" },
+    no_blur = true,
+})
+
+hl.window_rule({
+    name = "gromit-mpx-no-blur-title",
+    match = { title = "^(gromit-mpx)$" },
+    no_blur = true,
+})

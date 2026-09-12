@@ -2,7 +2,7 @@
 
 These scripts perform the destructive live-environment stages of an Arch Linux installation. Run them from an Arch ISO with the repository initialized by `source ./setup.sh`.
 
-> `disk_formatting.sh` unmounts `/mnt`, wipes the selected disk's partition table, and recreates its filesystems. Confirm the disk path and back up all required data first.
+> In **Whole disk** mode, `disk_formatting.sh` unmounts `/mnt`, wipes the selected disk's partition table, and recreates its filesystems. In **Unallocated space** mode, it preserves existing partitions and creates only the Arch layout in free space. Confirm the selected mode and disk path first.
 
 ## Files
 
@@ -33,6 +33,8 @@ Use interactive mode to choose the layout:
 ./scripts/install/disk_formatting.sh --interactive
 ```
 
+The first prompt selects **Whole disk**, which recreates the selected disk, or **Unallocated space**, which preserves an existing GPT disk and creates a separate Arch ESP in its largest suitable free extent. The latter path is UEFI-only and skips the GPT/MBR prompt.
+
 The script creates a 1 GiB `/boot` partition first. GPT installations format it as FAT32 and assign `sfdisk` type `U` (EFI System Partition); MBR installations use an ext4 boot partition with the bootable flag. Root and home use ext4. The finished target is mounted below `/mnt`.
 
 Supported choices include:
@@ -55,6 +57,20 @@ For a non-interactive layout, supply options directly:
 ```
 
 With `--luks -`, the passphrase is read from the `PASSWORD` environment variable. Do not place passphrases in shell history. Use `--help` for the current option and exit-status reference.
+
+### Windows alongside installation (separate ESP)
+
+Use `disk_formatting.sh --interactive` and select **Unallocated space** at the first prompt. This UEFI/GPT-only path discovers the free extents and uses the largest one that fits the selected layout. It creates a new FAT32 Arch ESP and never reformats or mounts the Windows ESP.
+
+For non-interactive use, pass `--unallocated`; it skips the GPT/MBR choice and requires an existing GPT disk booted in UEFI mode:
+
+```bash
+./scripts/install/disk_formatting.sh \
+  --unallocated --disk /dev/nvme0n1 \
+  --root 64 --swap 8
+```
+
+The script creates a 1 GiB Arch ESP followed by its Arch filesystems and mounts the result under `/mnt`. Continue with the remaining installation stages normally. `boot_configuration.sh` uses the distinct `ArchLinux` UEFI bootloader ID.
 
 ### 2. Install and configure the base system
 

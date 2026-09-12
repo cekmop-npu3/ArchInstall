@@ -11,6 +11,7 @@ readonly INVALID_NUMBER=6
 readonly INVALID_PASSWORD=7
 readonly DF_INVALID_OPTIONS=8
 readonly DF_ROOT_DIR_INVALID=9
+readonly INSUFFICIENT_FREE_SPACE=10
 
 [[ -n "${ROOT_DIR:-}" ]] || { echo "ROOT_DIR env variable is not set"; exit $DF_ROOT_DIR_INVALID; }
 
@@ -25,22 +26,29 @@ declare -ar partitions=( "root" "home" "swap" )
 declare -ar luks_partitions=( "cryptroot" "crypthome" "cryptswap" "cryptlvm" )
 
 declare -ir min_root_size=64
+declare -ir min_home_size=1
 declare -ir min_boot_size=1
+declare -ir gibibyte=1073741824
 
 declare -i is_interactive=1
+declare -i use_unallocated_space=0
+declare -a free_regions=()
 
 function usage () {
     cat <<-EOF
 Usage: $script_name [OPTIONS]
        $script_name --interactive
 
-Partition, format, and mount an Arch Linux target filesystem at /mnt.
+Partition, format, and mount an Arch Linux target filesystem at /mnt. In
+interactive mode, choose whether to replace the whole disk or use its existing
+unallocated space.
 
 Options:
   -d, --disk DEVICE       Target block device, for example /dev/nvme0n1
   -s, --swap GIB          Swap size in GiB (default: disabled)
   -r, --root GIB          Root size in GiB (default: $min_root_size; minimum: $min_root_size)
   -p, --partition TABLE   Partition table: GPT or MBR (default: $default_partition_table)
+  -u, --unallocated       Use the largest suitable unallocated GPT extent
   -l, --lvm               Enable LVM
   -L, --luks PASSWORD     Enable LUKS; use - to read PASSWORD from the environment
   -i, --interactive       Prompt for installation settings
@@ -65,6 +73,7 @@ function set_disk () { disk="${1:-}"; }
 function set_swap () { swap_size="${1:-}"; }
 function set_root () { root_size="${1:-}"; }
 function set_partition () { partition="${1:-}"; }
+function set_unallocated () { use_unallocated_space=1; }
 function set_lvm () { lvm=0; }
 function set_luks () { luks=0; password="${1:-}"; }
 function on_interactive () { is_interactive=0; }
@@ -72,25 +81,30 @@ function on_interactive () { is_interactive=0; }
 function eval_script_options () {
     declare -a script_options=("$@")
 
-    declare -A opt1 opt2 opt3 opt4 opt5 opt6 opt7 opt8
+    declare -A opt1 opt2 opt3 opt4 opt5 opt6 opt7 opt8 opt9
     create_option --short-option="d" --long-option="disk" --argument="true" --required --callback=set_disk opt1
     create_option --short-option="s" --long-option="swap" --argument="true" --callback=set_swap opt2
     create_option --short-option="r" --long-option="root" --argument="true" --callback=set_root opt3
     create_option --short-option="p" --long-option="partition" --argument="true" --callback=set_partition opt4
+    create_option --short-option="u" --long-option="unallocated" --callback=set_unallocated opt5
 
-    create_option --short-option="l" --long-option="lvm" --callback=set_lvm opt5
-    create_option --short-option="L" --long-option="luks" --argument="true" --callback=set_luks opt6
-    create_option --short-option="h" --long-option="help" --early --callback=usage opt7
-    create_option --short-option="i" --long-option="interactive" --early --callback=on_interactive opt8
+    create_option --short-option="l" --long-option="lvm" --callback=set_lvm opt6
+    create_option --short-option="L" --long-option="luks" --argument="true" --callback=set_luks opt7
+    create_option --short-option="h" --long-option="help" --early --callback=usage opt8
+    create_option --short-option="i" --long-option="interactive" --early --callback=on_interactive opt9
 
     declare -A usage1 usage2
-    set_usage usage1 opt1 opt2 opt3 opt4 opt5 opt6 opt7
-    set_usage usage2 opt7 opt8
+    set_usage usage1 opt1 opt2 opt3 opt4 opt5 opt6 opt7 opt8
+    set_usage usage2 opt8 opt9
 
     declare -A response
     handle_usages response script_options usage1 usage2 || { echo "Invalid options passed to $script_name"; return $DF_INVALID_OPTIONS; }
 
     invoke_callbacks response
+    if (( use_unallocated_space )) && [[ -n "${partition:-}" ]]; then
+        echo "--partition cannot be used with --unallocated; unallocated-space installs require the existing GPT table" >&2
+        return $DF_INVALID_OPTIONS
+    fi
 }
 
 function check_password () {
@@ -147,10 +161,44 @@ function check_disk () {
     if [[ -z "${disk:-}" || -z "$(echo "$disk" | grep -oP "/dev/\w+")" ]]; then
         echo "Disk name is invalid or not specified" >&2
         return $INVALID_DISK_NAME
+    elif (( use_unallocated_space )) && { [[ ! -b "$disk" ]] || [[ "$(lsblk -dn -o TYPE "$disk")" != disk ]]; }; then
+        echo "Disk name is invalid or not specified" >&2
+        return $INVALID_DISK_NAME
+    elif (( use_unallocated_space )) && [[ ! -d /sys/firmware/efi ]]; then
+        echo "UEFI is not detected; boot the live ISO in UEFI mode" >&2
+        return $INVALID_UEFI
+    elif (( use_unallocated_space )) && [[ "$(parted -m -s "$disk" print | awk -F: 'NR == 2 {print $6}')" != gpt ]]; then
+        echo "$disk is not a GPT disk" >&2
+        return $INVALID_PARTITION
+    elif (( use_unallocated_space )); then
+        sector_size="$(blockdev --getss "$disk")"
+        (( gibibyte % sector_size == 0 )) || return $INVALID_DISK_NAME
+        sectors_per_gib=$(( gibibyte / sector_size ))
     elif [[ $(( $(( $root_size + ${swap_size:-0} + $min_boot_size )) * 1073741824 )) -ge $(lsblk --bytes --nodeps --noheadings --output SIZE "$disk") ]]; then
         echo "Not enough space on $disk for current configuration" >&2
         return $INSUFFICIENT_DISK_SIZE
     fi
+}
+
+function discover_free_regions () {
+    mapfile -t free_regions < <(parted -m -s "$disk" unit s print free | awk -F: '$5 ~ /^free/ { gsub(/s$/, "", $2); gsub(/s$/, "", $3); print $2 ":" $3 }')
+    (( ${#free_regions[@]} > 0 )) || { echo "No unallocated extents found on $disk" >&2; return $INSUFFICIENT_FREE_SPACE; }
+}
+
+function choose_largest_free_extent () {
+    local required=$(( (min_boot_size + root_size + min_home_size + ${swap_size:-0}) * sectors_per_gib ))
+    local region start end size largest=-1
+    for region in "${free_regions[@]}"; do
+        IFS=: read -r start end <<< "$region"
+        size=$(( end - start + 1 ))
+        if (( size >= required && size > largest )); then
+            free_start=$start
+            free_end=$end
+            largest=$size
+        fi
+    done
+    (( largest >= 0 )) || { echo "No unallocated extent is large enough for this layout" >&2; return $INSUFFICIENT_FREE_SPACE; }
+    echo "Using unallocated sector extent $free_start:$free_end"
 }
 
 function input_password () {
@@ -162,6 +210,20 @@ function input_password () {
 
 function choose_root_size () {
     read -rp "Enter root size (Default/Minimum $min_root_size GiB): " root_size
+}
+
+function choose_install_target () {
+    local target
+    echo "Choose an installation target:"
+    select target in "Whole disk (erases the selected disk)" "Unallocated space (UEFI/GPT only)" "EXIT"; do
+        case $target in
+            ("Whole disk (erases the selected disk)") use_unallocated_space=0 ;;
+            ("Unallocated space (UEFI/GPT only)") use_unallocated_space=1 ;;
+            (EXIT) exit 0 ;;
+            (*) continue ;;
+        esac
+        break
+    done
 }
 
 function choose_disk () {
@@ -245,6 +307,7 @@ function disk_cleanup () {
 }
 
 function disk_partition () {
+    (( ! use_unallocated_space )) || { unallocated_partition; return $?; }
     local script=""
     if (( ${lvm:-1} )) && [[ -n "$swap_size" ]]; then
         local total=$(( $(lsblk --bytes --nodeps --noheadings --output SIZE "$disk") / 1024 / 1024 / 1024 ))
@@ -279,17 +342,69 @@ function disk_partition () {
     udevadm settle
 }
 
+function get_partition_path () {
+    local label="$1"
+    local -a matches=()
+    mapfile -t matches < <(lsblk -rno PATH,PARTLABEL "$disk" | awk -v label="$label" '$2 == label {print $1}')
+    (( ${#matches[@]} == 1 )) || return $INVALID_PARTITION
+    printf '%s\n' "${matches[0]}"
+}
+
+function unallocated_partition () {
+    local boot_sectors=$(( min_boot_size * sectors_per_gib ))
+    local root_sectors=$(( root_size * sectors_per_gib ))
+    local swap_sectors=$(( ${swap_size:-0} * sectors_per_gib ))
+    local boot_end=$(( free_start + boot_sectors - 1 ))
+    local data_start=$(( boot_end + 1 ))
+    local root_end=$(( data_start + root_sectors - 1 ))
+
+    parted -s "$disk" unit s mkpart esp fat32 "${free_start}s" "${boot_end}s"
+    partprobe "$disk"; udevadm settle
+    boot_path="$(get_partition_path esp)" || return $?
+    parted -s "$disk" set "$(lsblk -no PARTN "$boot_path")" esp on
+
+    if (( ! ${lvm:-1} )); then
+        parted -s "$disk" unit s mkpart lvm ext4 "${data_start}s" "${free_end}s"
+        partprobe "$disk"; udevadm settle
+        local lvm_path
+        lvm_path="$(get_partition_path lvm)" || return $?
+        parted -s "$disk" set "$(lsblk -no PARTN "$lvm_path")" lvm on
+        return 0
+    fi
+
+    parted -s "$disk" unit s mkpart root ext4 "${data_start}s" "${root_end}s"
+    local home_start=$(( root_end + 1 ))
+    if [[ -n "${swap_size:-}" ]]; then
+        local swap_start=$(( free_end - swap_sectors + 1 ))
+        parted -s "$disk" unit s mkpart home ext4 "${home_start}s" "$(( swap_start - 1 ))s"
+        parted -s "$disk" unit s mkpart swap linux-swap "${swap_start}s" "${free_end}s"
+    else
+        parted -s "$disk" unit s mkpart home ext4 "${home_start}s" "${free_end}s"
+    fi
+    partprobe "$disk"; udevadm settle
+}
+
 function luks_setup () {
     if (( ${lvm:-1} )); then
         local -a disk_partitions
-        mapfile -t disk_partitions < <(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+[2-9]$)")
+        if (( use_unallocated_space )); then
+            disk_partitions=("$(get_partition_path root)" "$(get_partition_path home)")
+            [[ -z "${swap_size:-}" ]] || disk_partitions+=("$(get_partition_path swap)")
+        else
+            mapfile -t disk_partitions < <(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+[2-9]$)")
+        fi
         local -i index
         for (( index=0; index<${#disk_partitions[@]}; ++index )); do
             printf "%s" "$password" | cryptsetup luksFormat -q --key-file=- "${disk_partitions[$index]}"
             printf "%s" "$password" | cryptsetup open -q --key-file=- "${disk_partitions[$index]}" "${luks_partitions[$index]}"
         done
     else
-        local root_partition=$(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+2$)")
+        local root_partition
+        if (( use_unallocated_space )); then
+            root_partition="$(get_partition_path lvm)" || return $?
+        else
+            root_partition=$(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+2$)")
+        fi
         printf "%s" "$password" | cryptsetup luksFormat -q --key-file=- "$root_partition"
         printf "%s" "$password" | cryptsetup open -q --key-file=- $root_partition "${luks_partitions[3]}"
     fi
@@ -300,7 +415,12 @@ function lvm_setup () {
         pvcreate -ff "/dev/mapper/${luks_partitions[3]}"
         vgcreate $volume_group -f "/dev/mapper/${luks_partitions[3]}"
     else
-        local root_partition=$(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+2$)")
+        local root_partition
+        if (( use_unallocated_space )); then
+            root_partition="$(get_partition_path lvm)" || return $?
+        else
+            root_partition=$(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+2$)")
+        fi
         pvcreate -ff "$root_partition"
         vgcreate -f "$volume_group" "$root_partition"
     fi
@@ -321,16 +441,21 @@ function format_partitions () {
         mkswap "$swap_path"
         swapon "$swap_path"
     fi
-    if [[ "$partition" == "GPT" ]]; then
+    if (( use_unallocated_space )) || [[ "$partition" == "GPT" ]]; then
         mkfs.fat -F32 "$boot_path"
+        mount --mkdir -t vfat "$boot_path" /mnt/boot
     else
         mkfs.ext4 -FF "$boot_path"
+        mount --mkdir -t ext4 "$boot_path" /mnt/boot
     fi
-    mount --mkdir $boot_path /mnt/boot
 }
 
 function set_paths () {
-    boot_path=$(lsblk -ln -o PATH,PARTN $disk | grep -Po "$disk\w+(?=\s+1$)")
+    if (( use_unallocated_space )); then
+        boot_path="$(get_partition_path esp)" || return $?
+    else
+        boot_path=$(lsblk -ln -o PATH,PARTN $disk | grep -Po "$disk\w+(?=\s+1$)")
+    fi
     local array_of_paths="$1"
     mapfile -t array_of_paths <<< "$array_of_paths"
     root_path="${array_of_paths[0]}"
@@ -344,10 +469,16 @@ function main () {
     eval_script_options "$@" || return $?
     is_running_in_iso || return $?
 
+    verify $is_interactive choose_install_target : || return $?
     verify $is_interactive choose_root_size check_root_size || return $?
     verify $is_interactive choose_swap_size check_swap_size || return $?
     verify $is_interactive choose_disk check_disk || return $?
-    verify $is_interactive choose_partition_table check_partition_table || return $?
+    if (( use_unallocated_space )); then
+        discover_free_regions || return $?
+        choose_largest_free_extent || return $?
+    else
+        verify $is_interactive choose_partition_table check_partition_table || return $?
+    fi
     verify $is_interactive choose_mode : || return $?
 
     declare -A descriptor_array
@@ -373,7 +504,13 @@ function main () {
         lvm_setup 
         set_paths "$(printf "/dev/$volume_group/%s\n" "${partitions[@]}")"
     elif (( ${luks:-1} )); then
-        set_paths "$(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+[2-9]$)")" 
+        if (( use_unallocated_space )); then
+            set_paths "$(get_partition_path root)
+$(get_partition_path home)
+${swap_size:+$(get_partition_path swap)}"
+        else
+            set_paths "$(lsblk -ln -o PATH,PARTN $disk | grep -oP "$disk\w+(?=\s+[2-9]$)")"
+        fi
     fi
 
     format_partitions $boot_path $root_path $home_path "${swap_path-}"
@@ -382,3 +519,4 @@ function main () {
 }
 
 main "$@"
+

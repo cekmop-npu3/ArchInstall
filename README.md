@@ -49,7 +49,7 @@ source ./setup.sh
 ./scripts/system/self_deploy.sh --interactive
 ```
 
-`disk_formatting.sh` unmounts `/mnt`, destroys existing partition data on the selected disk, and creates the target layout. Verify the device name and back up data before starting. The detailed order, supported layouts, and boot behavior are documented in [scripts/install/README.md](scripts/install/README.md).
+`disk_formatting.sh` unmounts `/mnt` and can either replace a selected disk or create an Arch layout in its existing unallocated space. Verify the selected mode and device name before starting. The detailed order, supported layouts, and boot behavior are documented in [scripts/install/README.md](scripts/install/README.md).
 
 After booting the installed system, source `setup.sh` from the copied checkout and deploy the desired configuration:
 
@@ -61,7 +61,6 @@ source ./setup.sh
 
 ## Release and Ventoy artifacts
 
-Pushing a tag that begins with `v` runs the release workflow. It builds a current Arch Linux ISO with `git` included, packages the live-environment injection, and publishes these assets:
 
 | Asset | Purpose |
 | --- | --- |
@@ -78,6 +77,3 @@ sha256sum -c arch_linux.iso.sha256
 
 To use the release with Ventoy, copy `arch_linux.iso`, `live_injection.tar.gz`, and `ventoy.json` to the root of the Ventoy data partition. The configuration refers to `/arch_linux.iso` and `/live_injection.tar.gz`, so those filenames and locations must remain unchanged.
 
-The workflow publishes the ISO directly because Ventoy boots it directly. GitHub allows release assets smaller than 2 GiB; the workflow checks this limit before publishing and disables redundant artifact compression for the already-compressed ISO.
-
-The workflow caches the completed ISO. A push to `main` creates the cache when it is missing; later pushes reuse it. Tag releases can reuse the cache from `main` and only rebuild when it has expired or is otherwise unavailable. GitHub removes caches that have not been accessed for seven days.
