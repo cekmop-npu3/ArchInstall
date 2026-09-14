@@ -8,6 +8,11 @@ local function open_man_docs(prompt_title, sections)
 end
 
 function M.open()
+    if vim.fn.has("linux") == 0 and vim.bo.filetype ~= "lua" then
+        vim.notify("External documentation pickers are only enabled on Linux", vim.log.levels.INFO)
+        return
+    end
+
     local pickers = {
         python = require("plugins.telescope.python_docs").open,
         lua = function()

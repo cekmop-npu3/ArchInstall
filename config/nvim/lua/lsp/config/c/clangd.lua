@@ -10,7 +10,7 @@ local root_markers = {
 }
 
 local function normalize_path(path)
-    return vim.uv.fs_realpath(path) or vim.fs.normalize(path)
+    return vim.fs.normalize(vim.uv.fs_realpath(path) or path)
 end
 
 local function path_is_inside(path, root)
@@ -38,7 +38,12 @@ local function entry_file_path(entry)
 
     local entry_file = entry.file
 
-    if not vim.startswith(entry_file, "/") and type(entry.directory) == "string" then
+    local is_absolute = vim.startswith(entry_file, "/")
+    if vim.fn.has("win32") == 1 then
+        is_absolute = is_absolute or entry_file:match("^%a:[/\\]") ~= nil or vim.startswith(entry_file, "\\")
+    end
+
+    if not is_absolute and type(entry.directory) == "string" then
         entry_file = vim.fs.joinpath(entry.directory, entry_file)
     end
 
@@ -190,4 +195,3 @@ return {
     c = config({ "c", "c.doxygen" }, { "-std=c23" }),
     cpp = config({ "cpp", "cpp.doxygen" }, { "-std=c++23" }),
 }
-

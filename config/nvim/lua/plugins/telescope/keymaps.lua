@@ -24,7 +24,8 @@ function M.setup()
     vim.keymap.set("n", "<leader>s", builtin.lsp_dynamic_workspace_symbols, { desc = "LSP workspace symbols" })
     vim.keymap.set("n", "<leader>ld", require("plugins.telescope.documentation").open, { desc = "Language documentation" })
     vim.keymap.set("n", "<leader>fa", function()
-        local search_path = vim.fn.input("Search path: ", "/", "dir")
+        local default_path = vim.fn.has("win32") == 1 and vim.fn.getcwd() or "/"
+        local search_path = vim.fn.input("Search path: ", default_path, "dir")
         if search_path == "" then
             return
         end
