@@ -30,6 +30,7 @@ function M.setup()
         { src = "https://github.com/nvim-lualine/lualine.nvim.git" },
         { src = "https://github.com/goolord/alpha-nvim.git" },
         { src = "https://github.com/projekt0n/github-nvim-theme.git" },
+        { src = "https://github.com/m00qek/baleia.nvim.git" },
 
         { src = "https://github.com/MeanderingProgrammer/render-markdown.nvim.git" },
         { src = "https://github.com/brianhuster/live-preview.nvim.git" },
@@ -61,6 +62,7 @@ function M.setup()
         "plugins.ufo",
         "plugins.cmp",
         "plugins.github_colorscheme",
+        "plugins.baleia",
         "plugins.live_preview",
         "plugins.lsp_signature",
         "plugins.toggleterm",
@@ -77,4 +79,3 @@ function M.setup()
 end
 
 return M
-

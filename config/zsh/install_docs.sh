@@ -3,6 +3,23 @@
 declare PASSWORD=""
 read -t 0 && read -r PASSWORD
 
+function mirror_cplusplus () {
+    local url="$1"
+    local marker_path="$2"
+
+    wget --mirror --convert-links --adjust-extension --page-requisites --no-parent \
+        --domains=cplusplus.com --waitretry=5 --tries=5 --timeout=30 \
+        --retry-on-http-error=429,500,502,503,504 \
+        --directory-prefix="$HOME/.local/share/doc/C++/cplusplus" \
+        "$url"
+    local wget_status=$?
+
+    # Exit status 8 means one or more linked resources returned an HTTP error.
+    # The CPlusPlus documentation pages are still mirrored and link-converted.
+    (( wget_status == 0 || wget_status == 8 )) || return "$wget_status"
+    touch "$marker_path"
+}
+
 function main () {
     mkdir -p ~/.local/share/doc/C ~/.local/share/doc/C++
     [[ -f "$HOME/.local/share/doc/C/glibc.html" ]] || (
@@ -24,6 +41,25 @@ function main () {
         curl -L \
             https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2023/n4950.pdf \
             -o ~/.local/share/doc/C++/cpp23.pdf
+    )
+    [[ -f "$HOME/.local/share/doc/C++/cppreference/reference/en/cpp/language.html" ]] || (
+        mkdir -p "$HOME/.local/share/doc/C++/cppreference"
+        set -o pipefail
+        curl --fail --location \
+            https://github.com/PeterFeicht/cppreference-doc/releases/download/v20250209/html-book-20250209.tar.xz \
+            | tar -xJ -C "$HOME/.local/share/doc/C++/cppreference"
+    )
+    [[ -f "$HOME/.local/share/doc/C++/cplusplus/cplusplus.com/doc/tutorial/.complete" ]] || \
+        mirror_cplusplus \
+            https://cplusplus.com/doc/tutorial/ \
+            "$HOME/.local/share/doc/C++/cplusplus/cplusplus.com/doc/tutorial/.complete"
+    [[ -f "$HOME/.local/share/doc/C++/cplusplus/cplusplus.com/reference/.complete" ]] || \
+        mirror_cplusplus \
+            https://cplusplus.com/reference/ \
+            "$HOME/.local/share/doc/C++/cplusplus/cplusplus.com/reference/.complete"
+    [[ -d "$HOME/.local/share/doc/C++/libstdc++-manual-html" ]] || (
+        curl -L https://gcc.gnu.org/onlinedocs/gcc-16.1.0/libstdc++-manual-html.tar.gz \
+            | tar -xz -C ~/.local/share/doc/C++
     )
     [[ -d "$HOME/.local/share/doc/github-docs" ]] || (
         mkdir -p ~/.local/share/doc/github-docs

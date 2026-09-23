@@ -58,6 +58,10 @@
             "link": "~/.config/gtk-4.0"
         },
         {
+            "target": "$ROOT_DIR/config/git/gitconfig",
+            "link": "~/.gitconfig"
+        },
+        {
             "target": "$ROOT_DIR/config/zsh/zshrc.sh",
             "link": "~/.zshrc",
             "setup": "$ROOT_DIR/config/zsh/setup.sh"

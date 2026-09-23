@@ -28,9 +28,7 @@ function M.setup()
     vim.o.termguicolors = true
     vim.o.confirm = true
     vim.o.wrap = true
-    if vim.fn.has("linux") == 1 and vim.fn.executable("/usr/bin/zsh") == 1 then
-        vim.o.shell = "/usr/bin/zsh"
-    end
+    vim.o.shell = "/usr/bin/zsh"
     vim.o.winborder = "rounded"
 
     vim.g.netrw_browse_split = 0

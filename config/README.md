@@ -39,6 +39,7 @@ The default manifest deploys:
 | SwayNC | `~/.config/swaync` |
 | Waybar | `~/.config/waybar` |
 | GTK 3 and GTK 4 | `~/.config/gtk-3.0`, `~/.config/gtk-4.0` |
+| Git | `~/.gitconfig` |
 | Zsh | `~/.zshrc`, `~/.zprofile` |
 | Bash | `~/.bashrc`, `~/.bash_profile` |
 
